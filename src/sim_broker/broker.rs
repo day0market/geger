@@ -27,6 +27,7 @@ impl<T: SimulatedBrokerMarketDataProvider> SimulatedBroker<T> {
 
 impl<T: SimulatedBrokerMarketDataProvider> EventProvider for SimulatedBroker<T> {
     fn next_event(&mut self) -> Option<Event> {
-        None
+        let quote_event = self.md_provider.next_event()?;
+        Some(Event::MarketDataEvent(quote_event))
     }
 }

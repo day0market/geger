@@ -22,7 +22,14 @@ impl<T: EventProvider> Core<T> {
     }
 
     pub fn run(&mut self) {
-        'event_loop: while let Some(event) = self.event_provider.next_event() {
+        'event_loop: loop {
+            let event = self.event_provider.next_event();
+            if event.is_none() {
+                println!("event is none");
+                break 'event_loop;
+            }
+            let event = event.unwrap();
+            println!("received event {:?}", &event);
             match event {
                 Event::MarketDataEvent(event) => self.process_md_event(event),
                 Event::UDSMessage(event) => self.process_uds(event),

@@ -1,28 +1,90 @@
-use geger::common::events::MarketDataEvent;
+use geger::common::events::{Event, MarketDataEvent};
+use geger::common::market_data::Quote;
 use geger::core::core::Core;
 use geger::sim_broker::broker::{SimulatedBroker, SimulatedBrokerMarketDataProvider};
+use log::error;
+use std::{fs, thread};
 
 struct FileMarketDataProvider {
+    files: Vec<String>,
+    events_buffer: Vec<Quote>,
     directory: String,
+    idx: usize,
+    file_idx: usize,
 }
 
 impl FileMarketDataProvider {
     fn new(directory: &str) -> Self {
-        Self {
-            directory: directory.to_string(),
+        let mut files = vec![];
+        let paths = fs::read_dir(directory).unwrap();
+        for path in paths {
+            let dir_entry = path.as_ref().unwrap();
+            if dir_entry.file_type().unwrap().is_file() {
+                files.push(dir_entry.file_name().into_string().unwrap());
+            }
         }
+
+        let events_buffer = vec![];
+
+        Self {
+            files,
+            events_buffer,
+            directory: directory.to_string(),
+            idx: 0,
+            file_idx: 0,
+        }
+    }
+
+    fn read_events_to_buffer(&mut self) -> Result<(), String> {
+        println!("read event to buffer");
+        if self.events_buffer.len() < self.idx + 1 && self.events_buffer.len() != 0 {
+            self.idx += 1;
+            return Ok(());
+        }
+
+        if self.files.len() == self.file_idx + 1 {
+            return Err("no market data event".to_string());
+        }
+
+        let file_name = &self.files[self.file_idx];
+        let file_path = format!("{}/{}", &self.directory, file_name);
+        let contents = fs::read(file_path).unwrap();
+        println!("content readed");
+        self.file_idx += 1;
+        let quotes = match rmp_serde::from_read_ref::<_, Vec<geger::common::market_data::Quote>>(
+            &contents,
+        ) {
+            Ok(v) => v,
+            Err(e) => {
+                let err_msg = format!("failed deserialize quote {:?}", e);
+                error!("{}", &err_msg);
+                return Err(err_msg);
+            }
+        };
+
+        self.events_buffer = quotes;
+        self.idx = 0;
+        Ok(())
     }
 }
 
 impl SimulatedBrokerMarketDataProvider for FileMarketDataProvider {
     fn next_event(&mut self) -> Option<MarketDataEvent> {
-        todo!()
+        println!("here");
+        if let Err(err) = self.read_events_to_buffer() {
+            println!("failed to read events: {}", err);
+            return None;
+        }
+        let quote = &self.events_buffer[self.idx];
+        Some(MarketDataEvent::Quote((*quote).clone()))
     }
 }
 
 fn main() {
-    let md_provider = FileMarketDataProvider::new("");
+    let md_provider =
+        FileMarketDataProvider::new("/Users/alex/Desktop/my_remote/all_book_tickers_msg");
     let sim_broker = SimulatedBroker::new(md_provider);
     let mut core = Core::new(sim_broker);
+    println!("core created");
     core.run()
 }
