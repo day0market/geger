@@ -12,3 +12,9 @@ pub enum MarketDataEvent {
     Trade(Trade),
     Quote(Quote),
 }
+
+impl MarketDataEvent {
+    pub fn get_timestamp(&self) -> u64 {
+        return 0; // TODO
+    }
+}
