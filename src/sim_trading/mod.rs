@@ -19,8 +19,8 @@ pub trait SimulatedTradingMarketDataProvider {
 
 pub trait SimulatedBroker {
     fn get_name(&self) -> String;
-    fn on_new_timestamp(&mut self, ts: u64) -> Option<Vec<Event>>;
-    fn on_new_market_data(&mut self, md: &MarketDataEvent) -> Option<Vec<Event>>;
+    fn on_new_timestamp(&mut self, ts: u64) -> Vec<Event>;
+    fn on_new_market_data(&mut self, md: &MarketDataEvent) -> Vec<Event>;
 }
 
 pub struct SimulatedTrading<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> {
@@ -177,15 +177,12 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> EventProvider
         let mut collected_broker_events = vec![];
 
         for (_, broker) in self.brokers.iter_mut() {
-            if broker.get_name() == pending_md_event.get_exchange() {
-                if let Some(new_events) = broker.on_new_market_data(pending_md_event) {
-                    collected_broker_events.extend(new_events);
-                }
+            let new_events = if broker.get_name() == pending_md_event.get_exchange() {
+                broker.on_new_market_data(pending_md_event)
             } else {
-                if let Some(new_events) = broker.on_new_timestamp(pending_md_ts) {
-                    collected_broker_events.extend(new_events);
-                };
-            }
+                broker.on_new_timestamp(pending_md_ts)
+            };
+            collected_broker_events.extend(new_events);
         }
 
         if collected_broker_events.len() > 0 {
