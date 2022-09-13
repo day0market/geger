@@ -1,13 +1,10 @@
-use crate::common::uds::{OrderType, OrderUpdate, TimeInForce, UDSMessage};
+use crate::common::uds::{OrderType, OrderUpdate, Side, TimeInForce, UDSMessage};
 
-pub enum SimBrokerEvent {
-    PendingOrderEvent(PendingOrderEvent),
-    PendingCancelEvent(PendingCancelEvent),
+/*pub enum SimBrokerEvent {
+    NewOrder(NewOrderEvent),
+    NewOrderCancel(NewOrderCancelEvent),
     ExecutionEvent,
-    OrderConfirmationEvent,
-    OrderRejectionEvent,
     OrderCancelEvent,
-    CancelRejectedEvent,
     MarketDataEvent,
     None,
 }
@@ -15,25 +12,39 @@ pub enum SimBrokerEvent {
 impl SimBrokerEvent {
     pub fn get_timestamp(&self) -> u64 {
         match &self {
-            SimBrokerEvent::PendingOrderEvent(event) => event.confirmation_timestamp,
-            SimBrokerEvent::PendingCancelEvent(event) => event.confirmation_timestamp,
+            SimBrokerEvent::NewOrder(event) => event.confirmation_timestamp,
+            SimBrokerEvent::NewOrderCancel(event) => event.confirmation_timestamp,
             _ => 0u64, // TODO
         }
     }
 
     pub fn get_exchange(&self) -> String {
         match &self {
-            SimBrokerEvent::PendingOrderEvent(event) => event.exchange.clone(),
-            SimBrokerEvent::PendingCancelEvent(event) => event.exchange.clone(),
+            SimBrokerEvent::NewOrder(event) => event.exchange.clone(),
+            SimBrokerEvent::NewOrderCancel(event) => event.exchange.clone(),
             _ => "".to_string(), // TODO
         }
     }
 }
 
-pub struct PendingOrderEvent {
+pub struct NewOrderEvent {
     pub receive_timestamp: u64,
     pub confirmation_timestamp: u64,
-    pub exchange_order_id: u64,
+    pub order: BrokerOrder,
+}
+
+#[derive(Clone)]
+pub struct NewOrderCancelEvent {
+    pub receive_timestamp: u64,
+    pub confirmation_timestamp: u64,
+    pub client_order_id: String,
+    pub exchange_order_id: String,
+    pub exchange: String,
+    pub symbol: String,
+}*/
+
+pub struct BrokerOrder {
+    pub exchange_order_id: Option<u64>,
     pub client_order_id: String,
     pub exchange: String,
     pub r#type: OrderType,
@@ -41,14 +52,6 @@ pub struct PendingOrderEvent {
     pub price: Option<f64>,
     pub trigger_price: Option<f64>,
     pub symbol: String,
+    pub side: Side,
     pub quantity: f64,
-}
-
-pub struct PendingCancelEvent {
-    pub receive_timestamp: u64,
-    pub confirmation_timestamp: u64,
-    pub client_order_id: String,
-    pub exchange_order_id: String,
-    pub exchange: String,
-    pub symbol: String,
 }

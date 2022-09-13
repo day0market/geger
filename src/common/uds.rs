@@ -4,7 +4,7 @@ pub enum UDSMessage {
     OrderUpdate(OrderUpdate),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrderType {
     MARKET,
     LIMIT,
@@ -12,7 +12,7 @@ pub enum OrderType {
     LIQUIDATION,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TimeInForce {
     GTC,
     IOC,
@@ -20,7 +20,7 @@ pub enum TimeInForce {
     GTX,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExecutionType {
     NEW,
     CANCELED,
@@ -29,13 +29,13 @@ pub enum ExecutionType {
     TRADE,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Side {
     BUY,
     SELL,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrderStatus {
     NEW,
     PARTIALLY_FILLED,
@@ -48,20 +48,32 @@ pub enum OrderStatus {
 
 #[derive(Debug)]
 pub struct OrderUpdate {
-    symbol: String,
-    side: Side,
-    client_order_id: Option<String>,
-    exchange_order_id: Option<String>,
-    order_type: Option<OrderType>,
-    time_in_force: Option<TimeInForce>,
-    original_qty: f64,
-    original_price: f64,
-    average_price: Option<f64>,
-    stop_price: Option<f64>,
-    execution_type: ExecutionType,
-    order_status: OrderStatus,
-    last_filled_qty: Option<f64>,
-    accumulated_filled_qty: Option<f64>,
-    last_filled_price: Option<f64>,
-    last_trade_time: Option<f64>,
+    pub symbol: String,
+    pub side: Side,
+    pub client_order_id: Option<String>,
+    pub exchange_order_id: Option<String>,
+    pub order_type: Option<OrderType>,
+    pub time_in_force: Option<TimeInForce>,
+    pub original_qty: f64,
+    pub original_price: Option<f64>,
+    pub average_price: Option<f64>,
+    pub stop_price: Option<f64>,
+    pub execution_type: ExecutionType,
+    pub order_status: OrderStatus,
+    pub last_filled_qty: Option<f64>,
+    pub accumulated_filled_qty: Option<f64>,
+    pub last_filled_price: Option<f64>,
+    pub last_trade_time: Option<f64>,
+}
+
+pub enum CancelRequestStatus {
+    Accepted,
+    Rejected,
+    AlreadyCanceled,
+}
+
+pub struct CancelResponse {
+    pub client_order_id: Option<String>,
+    pub exchange_order_id: Option<String>,
+    pub status: CancelRequestStatus,
 }

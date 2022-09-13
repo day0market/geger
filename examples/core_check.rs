@@ -1,11 +1,14 @@
-use crossbeam_channel::unbounded;
+extern crate core;
+
 use geger::common::events::{Event, MarketDataEvent};
 use geger::common::market_data::{Quote, Trade};
 use geger::common::uds::UDSMessage;
 use geger::core::core::{Core, GatewayRouter, Strategy};
-use geger::sim_broker::broker::{SimulatedBroker, SimulatedBrokerMarketDataProvider};
+use geger::sim_broker::broker::SimBroker;
+use geger::sim_trading::{SimulatedTrading, SimulatedTradingMarketDataProvider};
 use log::error;
 use std::collections::HashMap;
+use std::sync::mpsc;
 use std::{fs, thread};
 
 struct FileMarketDataProvider {
@@ -71,7 +74,7 @@ impl FileMarketDataProvider {
     }
 }
 
-impl SimulatedBrokerMarketDataProvider for FileMarketDataProvider {
+impl SimulatedTradingMarketDataProvider for FileMarketDataProvider {
     fn next_event(&mut self) -> Option<MarketDataEvent> {
         if let Err(err) = self.read_events_to_buffer() {
             println!("failed to read events: {}", err);
@@ -108,10 +111,14 @@ fn main() {
     let md_provider =
         FileMarketDataProvider::new("/Users/alex/Desktop/my_remote/all_book_tickers_msg");
     let strategy = SampleStrategy::new();
-    let (gw_sender, gw_receiver) = unbounded();
-    let wire_latency = HashMap::new();
-    let sim_broker = SimulatedBroker::new(md_provider, gw_receiver.clone(), wire_latency);
-    let mut core = Core::new(sim_broker, strategy, gw_sender.clone());
+    let (gw_sender, gw_receiver) = mpsc::channel();
+
+    let sim_broker = SimBroker::new("test_broket".to_string(), gw_receiver);
+    let mut sim_trading = SimulatedTrading::new(md_provider);
+    if let Err(err) = sim_trading.add_broker(sim_broker) {
+        panic!("{:?}", err)
+    };
+    let mut core = Core::new(sim_trading, strategy, gw_sender.clone());
 
     core.run()
 }

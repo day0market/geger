@@ -1,7 +1,8 @@
 use crate::common::events::{Event, MarketDataEvent};
 use crate::common::market_data::{Quote, Trade};
-use crate::common::uds::{OrderType, TimeInForce, UDSMessage};
+use crate::common::uds::{OrderType, Side, TimeInForce, UDSMessage};
 use crossbeam_channel::{unbounded, Sender};
+use std::sync::mpsc;
 
 pub trait EventProvider {
     fn next_event(&mut self) -> Option<Event>;
@@ -14,12 +15,12 @@ pub trait Strategy {
 }
 
 pub struct GatewayRouter {
-    sender: Sender<GatewayRequest>,
+    sender: mpsc::Sender<ExchangeRequest>,
 }
 
-pub enum GatewayRequest {
+pub enum ExchangeRequest {
     NewOrder(NewOrderRequest),
-    CancelOrder(CancelOrderRequest),
+    CancelOrder(CancelOrderRequest), // TODO Alex: think about naming
 }
 
 pub struct NewOrderRequest {
@@ -31,6 +32,7 @@ pub struct NewOrderRequest {
     pub trigger_price: Option<f64>,
     pub symbol: String,
     pub quantity: f64,
+    pub side: Side,
 }
 
 pub struct CancelOrderRequest {
@@ -41,7 +43,7 @@ pub struct CancelOrderRequest {
 }
 
 impl GatewayRouter {
-    pub fn new(sender: Sender<GatewayRequest>) -> Self {
+    pub fn new(sender: mpsc::Sender<ExchangeRequest>) -> Self {
         Self { sender }
     }
     pub fn send_order(&mut self) {}
@@ -56,7 +58,11 @@ pub struct Core<T: EventProvider, S: Strategy> {
 }
 
 impl<T: EventProvider, S: Strategy> Core<T, S> {
-    pub fn new(event_provider: T, strategy: S, gw_router_sender: Sender<GatewayRequest>) -> Self {
+    pub fn new(
+        event_provider: T,
+        strategy: S,
+        gw_router_sender: mpsc::Sender<ExchangeRequest>,
+    ) -> Self {
         let gateway_router = GatewayRouter::new(gw_router_sender);
         Self {
             event_provider,
@@ -77,6 +83,9 @@ impl<T: EventProvider, S: Strategy> Core<T, S> {
             match event {
                 Event::MarketDataEvent(event) => self.process_md_event(event),
                 Event::UDSMessage(event) => self.process_uds(event),
+                Event::ExchangeResponse => {
+                    todo!()
+                }
             }
         }
     }
