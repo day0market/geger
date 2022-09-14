@@ -5,7 +5,7 @@ use geger::common::market_data::{Quote, Trade};
 use geger::common::uds::UDSMessage;
 use geger::core::core::{Core, GatewayRouter, Strategy};
 use geger::sim_broker::broker::SimBroker;
-use geger::sim_trading::{SimulatedTrading, SimulatedTradingMarketDataProvider};
+use geger::sim_environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use log::error;
 use std::collections::HashMap;
 use std::sync::mpsc;
@@ -114,7 +114,7 @@ fn main() {
     let (gw_sender, gw_receiver) = mpsc::channel();
 
     let sim_broker = SimBroker::new("test_broket".to_string(), gw_receiver);
-    let mut sim_trading = SimulatedTrading::new(md_provider);
+    let mut sim_trading = SimulatedEnvironment::new(md_provider);
     if let Err(err) = sim_trading.add_broker(sim_broker) {
         panic!("{:?}", err)
     };

@@ -4,6 +4,12 @@ pub enum UDSMessage {
     OrderUpdate(OrderUpdate),
 }
 
+impl UDSMessage {
+    pub fn get_timestamp(&self) -> u64 {
+        0 // TODO alex
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum OrderType {
     MARKET,
@@ -29,13 +35,13 @@ pub enum ExecutionType {
     TRADE,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Side {
     BUY,
     SELL,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OrderStatus {
     NEW,
     PARTIALLY_FILLED,
@@ -48,6 +54,7 @@ pub enum OrderStatus {
 
 #[derive(Debug)]
 pub struct OrderUpdate {
+    pub timestamp: u64,
     pub symbol: String,
     pub side: Side,
     pub client_order_id: Option<String>,
@@ -64,16 +71,4 @@ pub struct OrderUpdate {
     pub accumulated_filled_qty: Option<f64>,
     pub last_filled_price: Option<f64>,
     pub last_trade_time: Option<f64>,
-}
-
-pub enum CancelRequestStatus {
-    Accepted,
-    Rejected,
-    AlreadyCanceled,
-}
-
-pub struct CancelResponse {
-    pub client_order_id: Option<String>,
-    pub exchange_order_id: Option<String>,
-    pub status: CancelRequestStatus,
 }

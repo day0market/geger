@@ -3,7 +3,6 @@ use crate::common::types::Exchange;
 use crate::common::uds::OrderUpdate;
 use crate::common::uds::{ExecutionType, OrderStatus, UDSMessage};
 use crate::core::core::{CancelOrderRequest, EventProvider, ExchangeRequest, NewOrderRequest};
-use crate::sim_broker::broker_events::BrokerOrder;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -23,7 +22,7 @@ pub trait SimulatedBroker {
     fn on_new_market_data(&mut self, md: &MarketDataEvent) -> Vec<Event>;
 }
 
-pub struct SimulatedTrading<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> {
+pub struct SimulatedEnvironment<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> {
     md_provider: T,
     brokers: HashMap<Exchange, B>,
     pending_md_event: Option<MarketDataEvent>,
@@ -31,7 +30,7 @@ pub struct SimulatedTrading<T: SimulatedTradingMarketDataProvider, B: SimulatedB
     last_ts: u64,
 }
 
-impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> SimulatedTrading<T, B> {
+impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> SimulatedEnvironment<T, B> {
     pub fn new(md_provider: T) -> Self {
         let brokers = HashMap::new();
         Self {
@@ -157,7 +156,7 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> SimulatedTrading
 }
 
 impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> EventProvider
-    for SimulatedTrading<T, B>
+    for SimulatedEnvironment<T, B>
 {
     fn next_event(&mut self) -> Option<Event> {
         if self.broker_events_buffer.len() > 0 {

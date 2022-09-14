@@ -83,7 +83,7 @@ impl<T: EventProvider, S: Strategy> Core<T, S> {
             match event {
                 Event::MarketDataEvent(event) => self.process_md_event(event),
                 Event::UDSMessage(event) => self.process_uds(event),
-                Event::ExchangeResponse => {
+                Event::ExchangeResponse(event) => {
                     todo!()
                 }
             }
