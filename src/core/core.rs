@@ -1,8 +1,11 @@
 use crate::common::events::{Event, MarketDataEvent};
 use crate::common::market_data::{Quote, Trade};
 use crate::common::uds::{OrderType, Side, TimeInForce, UDSMessage};
-use crossbeam_channel::{unbounded, Sender};
-use std::sync::mpsc;
+use crossbeam_channel::{unbounded, Receiver, SendError, Sender};
+use std::collections::HashMap;
+
+use crate::common::types::Exchange;
+use log::error;
 
 pub trait EventProvider {
     fn next_event(&mut self) -> Option<Event>;
@@ -12,10 +15,6 @@ pub trait Strategy {
     fn on_trade(&mut self, trade: &Trade, gw_router: &mut GatewayRouter);
     fn on_quote(&mut self, quote: &Quote, gw_router: &mut GatewayRouter);
     fn on_uds(&mut self, uds: &UDSMessage, gw_router: &mut GatewayRouter);
-}
-
-pub struct GatewayRouter {
-    sender: mpsc::Sender<ExchangeRequest>,
 }
 
 pub enum ExchangeRequest {
@@ -42,13 +41,42 @@ pub struct CancelOrderRequest {
     pub symbol: String,
 }
 
-impl GatewayRouter {
-    pub fn new(sender: mpsc::Sender<ExchangeRequest>) -> Self {
-        Self { sender }
-    }
-    pub fn send_order(&mut self) {}
+#[derive(Debug)]
+pub enum GatewayRouterError {
+    UnknownExchange,
+    SendError(SendError<ExchangeRequest>),
+}
 
-    pub fn cancel_order(&mut self) {}
+pub struct GatewayRouter {
+    senders: HashMap<Exchange, Sender<ExchangeRequest>>,
+}
+
+impl GatewayRouter {
+    pub fn new(senders: HashMap<Exchange, Sender<ExchangeRequest>>) -> Self {
+        Self { senders }
+    }
+
+    pub fn send_order(&mut self, request: NewOrderRequest) -> Result<(), GatewayRouterError> {
+        let sender = match self.senders.get(&request.exchange) {
+            Some(val) => val,
+            None => return Err(GatewayRouterError::UnknownExchange),
+        };
+        match sender.send(ExchangeRequest::NewOrder(request)) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(GatewayRouterError::SendError(err)),
+        }
+    }
+
+    pub fn cancel_order(&mut self, request: CancelOrderRequest) -> Result<(), GatewayRouterError> {
+        let sender = match self.senders.get(&request.exchange) {
+            Some(val) => val,
+            None => return Err(GatewayRouterError::UnknownExchange),
+        };
+        match sender.send(ExchangeRequest::CancelOrder(request)) {
+            Ok(_) => Ok(()),
+            Err(err) => Err(GatewayRouterError::SendError(err)),
+        }
+    }
 }
 
 pub struct Core<T: EventProvider, S: Strategy> {
@@ -61,9 +89,9 @@ impl<T: EventProvider, S: Strategy> Core<T, S> {
     pub fn new(
         event_provider: T,
         strategy: S,
-        gw_router_sender: mpsc::Sender<ExchangeRequest>,
+        gw_router_senders: HashMap<Exchange, Sender<ExchangeRequest>>,
     ) -> Self {
-        let gateway_router = GatewayRouter::new(gw_router_sender);
+        let gateway_router = GatewayRouter::new(gw_router_senders);
         Self {
             event_provider,
             strategy,

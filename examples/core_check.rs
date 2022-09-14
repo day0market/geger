@@ -1,9 +1,11 @@
 extern crate core;
 
+use crossbeam_channel::unbounded;
 use geger::common::events::{Event, MarketDataEvent};
 use geger::common::market_data::{Quote, Trade};
-use geger::common::uds::UDSMessage;
-use geger::core::core::{Core, GatewayRouter, Strategy};
+use geger::common::types::Exchange;
+use geger::common::uds::{OrderType, Side, TimeInForce, UDSMessage};
+use geger::core::core::{Core, ExchangeRequest, GatewayRouter, NewOrderRequest, Strategy};
 use geger::sim_broker::broker::SimBroker;
 use geger::sim_environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use log::error;
@@ -85,11 +87,15 @@ impl SimulatedTradingMarketDataProvider for FileMarketDataProvider {
     }
 }
 
-struct SampleStrategy {}
+struct SampleStrategy {
+    has_open_order: bool,
+}
 
 impl SampleStrategy {
     fn new() -> Self {
-        Self {}
+        Self {
+            has_open_order: false,
+        }
     }
 }
 
@@ -99,11 +105,28 @@ impl Strategy for SampleStrategy {
     }
 
     fn on_quote(&mut self, quote: &Quote, gw_router: &mut GatewayRouter) {
-        todo!()
+        if !self.has_open_order {
+            let request = NewOrderRequest {
+                client_order_id: "1".to_string(),
+                exchange: "test_broket".to_string(),
+                r#type: OrderType::LIMIT,
+                time_in_force: TimeInForce::GTC,
+                price: Some(quote.ask),
+                trigger_price: None,
+                symbol: quote.symbol.clone(),
+                quantity: 1.0,
+                side: Side::BUY,
+            };
+            if let Err(err) = gw_router.send_order(request) {
+                panic!("{:?}", err)
+            };
+            self.has_open_order = true
+        }
     }
 
     fn on_uds(&mut self, uds: &UDSMessage, gw_router: &mut GatewayRouter) {
-        todo!()
+        println!("{:?}", uds);
+        panic!("uds arrived");
     }
 }
 
@@ -111,14 +134,17 @@ fn main() {
     let md_provider =
         FileMarketDataProvider::new("/Users/alex/Desktop/my_remote/all_book_tickers_msg");
     let strategy = SampleStrategy::new();
-    let (gw_sender, gw_receiver) = mpsc::channel();
+    let (gw_sender, gw_receiver) = unbounded();
 
-    let sim_broker = SimBroker::new("test_broket".to_string(), gw_receiver);
+    let sim_broker_name: Exchange = "test_broket".to_string();
+    let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver);
     let mut sim_trading = SimulatedEnvironment::new(md_provider);
     if let Err(err) = sim_trading.add_broker(sim_broker) {
         panic!("{:?}", err)
     };
-    let mut core = Core::new(sim_trading, strategy, gw_sender.clone());
+    let mut gw_senders = HashMap::new();
+    gw_senders.insert(sim_broker_name, gw_sender);
+    let mut core = Core::new(sim_trading, strategy, gw_senders);
 
     core.run()
 }

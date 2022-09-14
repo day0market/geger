@@ -7,10 +7,10 @@ use crate::common::uds::OrderUpdate;
 use crate::common::uds::{ExecutionType, OrderStatus, UDSMessage};
 use crate::core::core::{CancelOrderRequest, EventProvider, ExchangeRequest, NewOrderRequest};
 use crate::sim_environment::SimulatedBroker;
+use crossbeam_channel::Receiver;
 use log::warn;
 use rmp::Marker::{False, True};
 use std::collections::{HashMap, HashSet};
-use std::sync::mpsc;
 
 struct SimBrokerExchangeRequest {
     ack_timestamp: u64,
@@ -28,14 +28,14 @@ pub struct SimBroker {
     done_orders: HashMap<u64, Order>,
     order_id_mapping: HashMap<String, u64>,
     pending_requests: HashMap<u64, SimBrokerExchangeRequest>,
-    incoming_request_receiver: mpsc::Receiver<ExchangeRequest>,
+    incoming_request_receiver: Receiver<ExchangeRequest>,
     generated_events: HashMap<u64, Event>,
     wire_latency: u64,
     internal_latency: u64,
 }
 
 impl SimBroker {
-    pub fn new(name: String, incoming_request_receiver: mpsc::Receiver<ExchangeRequest>) -> Self {
+    pub fn new(name: String, incoming_request_receiver: Receiver<ExchangeRequest>) -> Self {
         Self {
             name,
             last_ts: 0,
@@ -52,61 +52,6 @@ impl SimBroker {
             internal_latency: 2,
         }
     }
-
-    /*fn on_new_broker_event(&mut self, event: &SimBrokerEvent) -> Option<UDSMessage> {
-        match event {
-            SimBrokerEvent::NewOrder(event) => self.on_new_order_event(event),
-            SimBrokerEvent::NewOrderCancel(event) => self.on_cancel_event(event),
-            SimBrokerEvent::MarketDataEvent() => todo!(),
-            _ => None,
-        }
-    }
-
-    fn on_new_order_event(&mut self, event: &NewOrderEvent) -> Option<UDSMessage> {
-        // order rejected update is default
-        let mut order_update = OrderUpdate {
-            symbol: event.order.symbol.clone(),
-            side: event.order.side.clone(),
-            client_order_id: Some(event.order.client_order_id.clone()),
-            exchange_order_id: None,
-            order_type: Some(event.order.r#type.clone()),
-            time_in_force: Some(event.order.time_in_force.clone()),
-            original_qty: event.order.quantity,
-            original_price: event.order.price,
-            average_price: None,
-            stop_price: None, // TODO populate when order is stop
-            execution_type: ExecutionType::NEW,
-            order_status: OrderStatus::CANCELED,
-            last_filled_qty: None,
-            accumulated_filled_qty: None,
-            last_filled_price: None,
-            last_trade_time: None,
-        };
-
-        if self
-            .order_id_mapping
-            .contains_key(&event.order.client_order_id)
-        {
-            return Some(UDSMessage::OrderUpdate(order_update));
-        }
-
-        self.last_exchange_order_id += 1;
-        order_update.exchange_order_id = Some(self.last_exchange_order_id.to_string());
-        order_update.order_status = OrderStatus::NEW;
-
-        self.order_id_mapping.insert(
-            event.order.client_order_id.clone(),
-            self.last_exchange_order_id,
-        );
-        self.open_orders
-            .insert(self.last_exchange_order_id, event.order.clone());
-
-        Some(UDSMessage::OrderUpdate(order_update))
-    }
-
-    fn on_cancel_event(&mut self, event: &NewOrderCancelEvent) -> Option<UDSMessage> {
-        todo!()
-    }*/
 
     fn execute_requests_after_ts(&mut self, ts: u64) {
         if self.pending_requests.len() == 0 {
