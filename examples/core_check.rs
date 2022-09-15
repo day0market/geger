@@ -5,13 +5,15 @@ use geger::common::events::{Event, MarketDataEvent};
 use geger::common::market_data::{Quote, Trade};
 use geger::common::types::Exchange;
 use geger::common::uds::{OrderType, Side, TimeInForce, UDSMessage};
-use geger::core::core::{Core, ExchangeRequest, GatewayRouter, NewOrderRequest, Strategy};
+use geger::core::core::{Actor, Core, ExchangeRequest, GatewayRouter, NewOrderRequest};
 use geger::sim_broker::broker::SimBroker;
 use geger::sim_environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use log::error;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::{fs, thread};
+
+const SIM_BROKER_NAME: &str = "test_broket";
 
 struct FileMarketDataProvider {
     files: Vec<String>,
@@ -97,18 +99,12 @@ impl SampleStrategy {
             has_open_order: false,
         }
     }
-}
-
-impl Strategy for SampleStrategy {
-    fn on_trade(&mut self, trade: &Trade, gw_router: &mut GatewayRouter) {
-        todo!()
-    }
 
     fn on_quote(&mut self, quote: &Quote, gw_router: &mut GatewayRouter) {
         if !self.has_open_order {
             let request = NewOrderRequest {
                 client_order_id: "1".to_string(),
-                exchange: "test_broket".to_string(),
+                exchange: SIM_BROKER_NAME.to_string(),
                 r#type: OrderType::LIMIT,
                 time_in_force: TimeInForce::GTC,
                 price: Some(quote.ask),
@@ -123,10 +119,23 @@ impl Strategy for SampleStrategy {
             self.has_open_order = true
         }
     }
+}
 
-    fn on_uds(&mut self, uds: &UDSMessage, gw_router: &mut GatewayRouter) {
-        println!("{:?}", uds);
-        panic!("uds arrived");
+impl Actor for SampleStrategy {
+    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+        match event {
+            Event::MarketDataEvent(md) => match md {
+                MarketDataEvent::Quote(quote) => self.on_quote(quote, gw_router),
+                _ => {}
+            },
+            Event::UDSMessage(msg) => match msg {
+                UDSMessage::OrderUpdate(update) => {
+                    println!("{:?}", &update);
+                    panic!("uds arrived");
+                }
+            },
+            _ => {}
+        }
     }
 }
 
@@ -136,7 +145,7 @@ fn main() {
     let strategy = SampleStrategy::new();
     let (gw_sender, gw_receiver) = unbounded();
 
-    let sim_broker_name: Exchange = "test_broket".to_string();
+    let sim_broker_name: Exchange = SIM_BROKER_NAME.to_string();
     let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver);
     let mut sim_trading = SimulatedEnvironment::new(md_provider);
     if let Err(err) = sim_trading.add_broker(sim_broker) {

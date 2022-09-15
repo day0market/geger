@@ -11,10 +11,8 @@ pub trait EventProvider {
     fn next_event(&mut self) -> Option<Event>;
 }
 
-pub trait Strategy {
-    fn on_trade(&mut self, trade: &Trade, gw_router: &mut GatewayRouter);
-    fn on_quote(&mut self, quote: &Quote, gw_router: &mut GatewayRouter);
-    fn on_uds(&mut self, uds: &UDSMessage, gw_router: &mut GatewayRouter);
+pub trait Actor {
+    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter);
 }
 
 pub enum ExchangeRequest {
@@ -79,13 +77,13 @@ impl GatewayRouter {
     }
 }
 
-pub struct Core<T: EventProvider, S: Strategy> {
+pub struct Core<T: EventProvider, S: Actor> {
     event_provider: T,
     strategy: S,
     gateway_router: GatewayRouter,
 }
 
-impl<T: EventProvider, S: Strategy> Core<T, S> {
+impl<T: EventProvider, S: Actor> Core<T, S> {
     pub fn new(
         event_provider: T,
         strategy: S,
@@ -103,33 +101,10 @@ impl<T: EventProvider, S: Strategy> Core<T, S> {
         'event_loop: loop {
             let event = self.event_provider.next_event();
             if event.is_none() {
-                println!("event is none");
                 break 'event_loop;
             }
             let event = event.unwrap();
-            //println!("received event {:?}", &event);
-            match event {
-                Event::MarketDataEvent(event) => self.process_md_event(event),
-                Event::UDSMessage(event) => self.process_uds(event),
-                Event::ExchangeResponse(event) => {
-                    todo!()
-                }
-            }
+            self.strategy.on_event(&event, &mut self.gateway_router);
         }
-    }
-
-    fn process_md_event(&mut self, event: MarketDataEvent) {
-        match event {
-            MarketDataEvent::Quote(quote) => {
-                self.strategy.on_quote(&quote, &mut self.gateway_router)
-            }
-            MarketDataEvent::Trade(trade) => {
-                self.strategy.on_trade(&trade, &mut self.gateway_router)
-            }
-        }
-    }
-
-    fn process_uds(&mut self, event: UDSMessage) {
-        self.strategy.on_uds(&event, &mut self.gateway_router)
     }
 }
