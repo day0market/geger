@@ -1,5 +1,5 @@
 use crate::common::order::Order;
-use crate::common::uds::{OrderStatus, OrderType};
+use crate::common::types::{OrderStatus, OrderType};
 use crate::core::core::NewOrderRequest;
 
 #[derive(Debug)]

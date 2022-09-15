@@ -1,8 +1,8 @@
-use crate::common::events::{Event, MarketDataEvent};
-use crate::common::types::Exchange;
-use crate::common::uds::OrderUpdate;
-use crate::common::uds::{ExecutionType, OrderStatus, UDSMessage};
-use crate::core::core::{CancelOrderRequest, EventProvider, ExchangeRequest, NewOrderRequest};
+use crate::common::events::Event;
+use crate::common::market_data::MarketDataEvent;
+
+use crate::common::types::{Exchange, Timestamp};
+use crate::core::core::EventProvider;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -17,8 +17,8 @@ pub trait SimulatedTradingMarketDataProvider {
 }
 
 pub trait SimulatedBroker {
-    fn get_name(&self) -> String;
-    fn on_new_timestamp(&mut self, ts: u64) -> Vec<Event>;
+    fn exchange(&self) -> Exchange;
+    fn on_new_timestamp(&mut self, ts: Timestamp) -> Vec<Event>;
     fn on_new_market_data(&mut self, md: &MarketDataEvent) -> Vec<Event>;
 }
 
@@ -43,11 +43,11 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> SimulatedEnviron
     }
 
     pub fn add_broker(&mut self, broker: B) -> Result<()> {
-        let name = broker.get_name();
-        if self.brokers.contains_key(&name) {
+        let exchange = broker.exchange();
+        if self.brokers.contains_key(&exchange) {
             return Err(SimTradingError::BrokerAlreadyExists);
         };
-        self.brokers.insert(name, broker);
+        self.brokers.insert(exchange, broker);
         Ok(())
     }
 
@@ -76,12 +76,12 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> EventProvider
         }
 
         let pending_md_event = self.pending_md_event.as_ref().unwrap();
-        let pending_md_ts = pending_md_event.get_timestamp();
+        let pending_md_ts = pending_md_event.timestamp();
 
         let mut collected_broker_events = vec![];
 
         for (_, broker) in self.brokers.iter_mut() {
-            let new_events = if broker.get_name() == pending_md_event.get_exchange() {
+            let new_events = if broker.exchange() == pending_md_event.exchange() {
                 broker.on_new_market_data(pending_md_event)
             } else {
                 broker.on_new_timestamp(pending_md_ts)
@@ -90,13 +90,13 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> EventProvider
         }
 
         if collected_broker_events.len() > 0 {
-            collected_broker_events.sort_by(|a, b| a.get_timestamp().cmp(&b.get_timestamp()));
+            collected_broker_events.sort_by(|a, b| a.timestamp().cmp(&b.timestamp()));
             let event = collected_broker_events.remove(0);
             self.broker_events_buffer = collected_broker_events;
             Some(event)
         } else {
             let md_event = self.pending_md_event.take().unwrap();
-            Some(Event::MarketDataEvent(md_event))
+            Some(Event::from(md_event))
         }
     }
 }

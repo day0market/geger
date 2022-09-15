@@ -1,11 +1,9 @@
-use crate::common::events::{Event, MarketDataEvent};
-use crate::common::market_data::{Quote, Trade};
-use crate::common::uds::{OrderType, Side, TimeInForce, UDSMessage};
-use crossbeam_channel::{unbounded, Receiver, SendError, Sender};
+use crate::common::events::Event;
+use crate::common::types::{ClientOrderId, ExchangeOrderId, OrderType, Side, Symbol, TimeInForce};
+use crossbeam_channel::{SendError, Sender};
 use std::collections::HashMap;
 
 use crate::common::types::Exchange;
-use log::error;
 
 pub trait EventProvider {
     fn next_event(&mut self) -> Option<Event>;
@@ -21,22 +19,22 @@ pub enum ExchangeRequest {
 }
 
 pub struct NewOrderRequest {
-    pub client_order_id: String,
-    pub exchange: String,
+    pub client_order_id: ClientOrderId,
+    pub exchange: Exchange,
     pub r#type: OrderType,
     pub time_in_force: TimeInForce,
     pub price: Option<f64>,
     pub trigger_price: Option<f64>,
-    pub symbol: String,
+    pub symbol: Symbol,
     pub quantity: f64,
     pub side: Side,
 }
 
 pub struct CancelOrderRequest {
-    pub client_order_id: String,
-    pub exchange_order_id: String,
-    pub exchange: String,
-    pub symbol: String,
+    pub client_order_id: ClientOrderId,
+    pub exchange_order_id: ExchangeOrderId,
+    pub exchange: Exchange,
+    pub symbol: Symbol,
 }
 
 #[derive(Debug)]

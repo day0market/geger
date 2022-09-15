@@ -1,17 +1,15 @@
 extern crate core;
 
 use crossbeam_channel::unbounded;
-use geger::common::events::{Event, MarketDataEvent};
-use geger::common::market_data::{Quote, Trade};
-use geger::common::types::Exchange;
-use geger::common::uds::{OrderType, Side, TimeInForce, UDSMessage};
-use geger::core::core::{Actor, Core, ExchangeRequest, GatewayRouter, NewOrderRequest};
+use geger::common::events::Event;
+use geger::common::market_data::{MarketDataEvent, Quote};
+use geger::common::types::{Exchange, OrderType, Side, TimeInForce};
+use geger::core::core::{Actor, Core, GatewayRouter, NewOrderRequest};
 use geger::sim_broker::broker::SimBroker;
 use geger::sim_environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use log::error;
 use std::collections::HashMap;
-use std::sync::mpsc;
-use std::{fs, thread};
+use std::fs;
 
 const SIM_BROKER_NAME: &str = "test_broket";
 
@@ -85,7 +83,7 @@ impl SimulatedTradingMarketDataProvider for FileMarketDataProvider {
             return None;
         }
         let quote = &self.events_buffer[self.idx];
-        Some(MarketDataEvent::Quote((*quote).clone()))
+        Some(MarketDataEvent::NewQuote((*quote).clone()))
     }
 }
 
@@ -124,16 +122,11 @@ impl SampleStrategy {
 impl Actor for SampleStrategy {
     fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
         match event {
-            Event::MarketDataEvent(md) => match md {
-                MarketDataEvent::Quote(quote) => self.on_quote(quote, gw_router),
-                _ => {}
-            },
-            Event::UDSMessage(msg) => match msg {
-                UDSMessage::OrderUpdate(update) => {
-                    println!("{:?}", &update);
-                    panic!("uds arrived");
-                }
-            },
+            Event::NewQuote(quote) => self.on_quote(quote, gw_router),
+            Event::UDSOrderUpdate(msg) => {
+                println!("{:?}", &msg);
+                panic!("uds arrived");
+            }
             _ => {}
         }
     }
