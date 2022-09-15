@@ -34,23 +34,14 @@ pub struct Trade {
     pub exchange: Exchange,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Quote {
-    #[serde(rename(deserialize = "s"))]
     pub symbol: Symbol,
-
-    #[serde(default)]
     pub exchange: Exchange,
-    #[serde(rename(deserialize = "b"))]
     pub bid: f64,
-    #[serde(rename(deserialize = "a"))]
     pub ask: f64,
-    #[serde(rename(deserialize = "bs"))]
     pub bid_size: Option<f64>,
-    #[serde(rename(deserialize = "as"))]
     pub ask_size: Option<f64>,
-    #[serde(rename(deserialize = "e"))]
     pub exchange_timestamp: Timestamp,
-    #[serde(rename(deserialize = "r"))]
     pub received_timestamp: Timestamp,
 }

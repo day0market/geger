@@ -3,19 +3,67 @@ extern crate core;
 use crossbeam_channel::unbounded;
 use geger::common::events::Event;
 use geger::common::market_data::{MarketDataEvent, Quote};
-use geger::common::types::{Exchange, OrderType, Side, TimeInForce};
-use geger::core::core::{Actor, Core, GatewayRouter, NewOrderRequest};
+use geger::common::types::{Exchange, OrderType, Side, Symbol, TimeInForce, Timestamp};
+use geger::core::core::{Actor, Core};
+use geger::core::gateway_router::{GatewayRouter, NewOrderRequest};
 use geger::sim_broker::broker::SimBroker;
 use geger::sim_environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use log::error;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 
-const SIM_BROKER_NAME: &str = "test_broket";
+const SIM_BROKER_EXCHANGE: &str = "test_exchange";
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct QuoteDef {
+    #[serde(rename(deserialize = "s"))]
+    pub symbol: Symbol,
+
+    #[serde(default)]
+    pub exchange: Exchange,
+    #[serde(rename(deserialize = "b"))]
+    pub bid: f64,
+    #[serde(rename(deserialize = "a"))]
+    pub ask: f64,
+    #[serde(rename(deserialize = "bs"))]
+    pub bid_size: Option<f64>,
+    #[serde(rename(deserialize = "as"))]
+    pub ask_size: Option<f64>,
+    #[serde(rename(deserialize = "e"))]
+    pub exchange_timestamp: f64,
+    #[serde(rename(deserialize = "r"))]
+    pub received_timestamp: f64,
+}
+
+impl From<QuoteDef> for Quote {
+    fn from(def: QuoteDef) -> Quote {
+        let QuoteDef {
+            symbol,
+            exchange,
+            bid,
+            ask,
+            bid_size,
+            ask_size,
+            exchange_timestamp,
+            received_timestamp,
+        } = def;
+        Quote {
+            symbol,
+            exchange: SIM_BROKER_EXCHANGE.to_string(),
+            bid,
+            ask,
+            bid_size,
+            ask_size,
+            exchange_timestamp: (exchange_timestamp * 1_000.0) as u64,
+            received_timestamp: (received_timestamp * 1_000.0) as u64,
+        }
+    }
+}
 
 struct FileMarketDataProvider {
     files: Vec<String>,
-    events_buffer: Vec<Quote>,
+    events_buffer: Vec<QuoteDef>,
     directory: String,
     idx: usize,
     file_idx: usize,
@@ -59,9 +107,7 @@ impl FileMarketDataProvider {
         let contents = fs::read(file_path).unwrap();
         println!("content readed");
         self.file_idx += 1;
-        let quotes = match rmp_serde::from_read_ref::<_, Vec<geger::common::market_data::Quote>>(
-            &contents,
-        ) {
+        let quotes = match rmp_serde::from_read_ref::<_, Vec<QuoteDef>>(&contents) {
             Ok(v) => v,
             Err(e) => {
                 let err_msg = format!("failed deserialize quote {:?}", e);
@@ -83,7 +129,8 @@ impl SimulatedTradingMarketDataProvider for FileMarketDataProvider {
             return None;
         }
         let quote = &self.events_buffer[self.idx];
-        Some(MarketDataEvent::NewQuote((*quote).clone()))
+
+        Some(MarketDataEvent::NewQuote((*quote).clone().into()))
     }
 }
 
@@ -102,7 +149,7 @@ impl SampleStrategy {
         if !self.has_open_order {
             let request = NewOrderRequest {
                 client_order_id: "1".to_string(),
-                exchange: SIM_BROKER_NAME.to_string(),
+                exchange: SIM_BROKER_EXCHANGE.to_string(),
                 r#type: OrderType::LIMIT,
                 time_in_force: TimeInForce::GTC,
                 price: Some(quote.ask),
@@ -138,7 +185,7 @@ fn main() {
     let strategy = SampleStrategy::new();
     let (gw_sender, gw_receiver) = unbounded();
 
-    let sim_broker_name: Exchange = SIM_BROKER_NAME.to_string();
+    let sim_broker_name: Exchange = SIM_BROKER_EXCHANGE.to_string();
     let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver);
     let mut sim_trading = SimulatedEnvironment::new(md_provider);
     if let Err(err) = sim_trading.add_broker(sim_broker) {

@@ -5,7 +5,7 @@ use crate::common::events::{
 use crate::common::market_data::MarketDataEvent;
 use crate::common::order::Order;
 use crate::common::types::{Exchange, ExecutionType, OrderStatus, Timestamp};
-use crate::core::core::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
+use crate::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
 use crate::sim_environment::SimulatedBroker;
 use crossbeam_channel::Receiver;
 use std::collections::HashMap;

@@ -1,6 +1,6 @@
 use crate::common::order::Order;
 use crate::common::types::{OrderStatus, OrderType};
-use crate::core::core::NewOrderRequest;
+use crate::core::gateway_router::NewOrderRequest;
 
 #[derive(Debug)]
 pub enum Error {
