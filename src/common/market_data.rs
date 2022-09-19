@@ -29,19 +29,26 @@ impl MarketDataEvent {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Trade {
-    pub received_timestamp: Timestamp, // TODO implement
-    #[serde(default)]
+    pub symbol: Symbol,
     pub exchange: Exchange,
+
+    pub last_price: f64,
+    pub last_size: f64,
+
+    pub exchange_timestamp: Timestamp,
+    pub received_timestamp: Timestamp,
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct Quote {
     pub symbol: Symbol,
     pub exchange: Exchange,
+
     pub bid: f64,
     pub ask: f64,
     pub bid_size: Option<f64>,
     pub ask_size: Option<f64>,
+
     pub exchange_timestamp: Timestamp,
     pub received_timestamp: Timestamp,
 }

@@ -1,10 +1,10 @@
 use crate::common::market_data::{MarketDataEvent, Quote, Trade};
 use crate::common::types::{
-    ClientOrderId, ExchangeOrderId, ExecutionType, OrderStatus, OrderType, Side, Symbol,
+    ClientOrderId, Exchange, ExchangeOrderId, ExecutionType, OrderStatus, OrderType, Side, Symbol,
     TimeInForce, Timestamp,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Event {
     NewMarketTrade(Trade),
     NewQuote(Quote),
@@ -17,7 +17,15 @@ pub enum Event {
 
 impl Event {
     pub fn timestamp(&self) -> Timestamp {
-        0 // TODO
+        match self {
+            Self::NewMarketTrade(t) => t.received_timestamp,
+            Self::NewQuote(q) => q.received_timestamp,
+            Self::ResponseNewOrderAccepted(r) => r.timestamp,
+            Self::ResponseNewOrderRejected(r) => r.timestamp,
+            Self::ResponseCancelOrderAccepted(r) => r.timestamp,
+            Self::ResponseCancelOrderRejected(r) => r.timestamp,
+            Self::UDSOrderUpdate(o) => o.timestamp,
+        }
     }
 }
 
@@ -30,28 +38,28 @@ impl From<MarketDataEvent> for Event {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NewOrderAccepted {
     pub timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NewOrderRejected {
     pub timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub reason: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CancelOrderAccepted {
     pub timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CancelOrderRejected {
     pub timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
@@ -59,10 +67,11 @@ pub struct CancelOrderRejected {
     pub reason: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OrderUpdate {
     pub timestamp: Timestamp,
     pub symbol: Symbol,
+    pub exchange: Exchange,
     pub side: Side,
     pub client_order_id: Option<ClientOrderId>,
     pub exchange_order_id: Option<ExchangeOrderId>,

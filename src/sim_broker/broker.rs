@@ -106,6 +106,7 @@ impl SimBroker {
         self.add_generated_event(Event::ResponseNewOrderAccepted(order_accepted));
 
         let order_update = OrderUpdate {
+            exchange: request.exchange.clone(),
             timestamp: ts + self.internal_latency,
             symbol: request.symbol.clone(),
             side: request.side.clone(),
@@ -184,6 +185,7 @@ impl SimBroker {
         };
         self.add_generated_event(Event::ResponseCancelOrderAccepted(cancel_accepted));
         let order_update = OrderUpdate {
+            exchange: request.exchange.clone(),
             timestamp: ts + self.internal_latency,
             symbol: order.symbol.clone(),
             side: order.side.clone(),

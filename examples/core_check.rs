@@ -1,11 +1,12 @@
 extern crate core;
-
 use crossbeam_channel::unbounded;
 use geger::common::events::Event;
 use geger::common::market_data::{MarketDataEvent, Quote};
-use geger::common::types::{Exchange, OrderType, Side, Symbol, TimeInForce, Timestamp};
+use geger::common::types::{
+    Exchange, OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp,
+};
 use geger::core::core::{Actor, Core};
-use geger::core::gateway_router::{GatewayRouter, NewOrderRequest};
+use geger::core::gateway_router::{CancelOrderRequest, GatewayRouter, NewOrderRequest};
 use geger::sim_broker::broker::SimBroker;
 use geger::sim_environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use log::error;
@@ -67,6 +68,7 @@ struct FileMarketDataProvider {
     directory: String,
     idx: usize,
     file_idx: usize,
+    last_ts: u64,
 }
 
 impl FileMarketDataProvider {
@@ -80,6 +82,8 @@ impl FileMarketDataProvider {
             }
         }
 
+        files.sort();
+
         let events_buffer = vec![];
 
         Self {
@@ -88,15 +92,13 @@ impl FileMarketDataProvider {
             directory: directory.to_string(),
             idx: 0,
             file_idx: 0,
+            last_ts: 0,
         }
     }
 
     fn read_events_to_buffer(&mut self) -> Result<(), String> {
-        println!("read event to buffer");
-        if self.events_buffer.len() < self.idx + 1 && self.events_buffer.len() != 0 {
-            self.idx += 1;
-            return Ok(());
-        }
+        self.events_buffer = vec![];
+        self.idx = 0;
 
         if self.files.len() == self.file_idx + 1 {
             return Err("no market data event".to_string());
@@ -104,8 +106,8 @@ impl FileMarketDataProvider {
 
         let file_name = &self.files[self.file_idx];
         let file_path = format!("{}/{}", &self.directory, file_name);
-        let contents = fs::read(file_path).unwrap();
-        println!("content readed");
+        let contents = fs::read(file_path.clone()).unwrap();
+        println!("content {} loaded", &file_path);
         self.file_idx += 1;
         let quotes = match rmp_serde::from_read_ref::<_, Vec<QuoteDef>>(&contents) {
             Ok(v) => v,
@@ -117,31 +119,50 @@ impl FileMarketDataProvider {
         };
 
         self.events_buffer = quotes;
-        self.idx = 0;
         Ok(())
     }
 }
 
 impl SimulatedTradingMarketDataProvider for FileMarketDataProvider {
     fn next_event(&mut self) -> Option<MarketDataEvent> {
-        if let Err(err) = self.read_events_to_buffer() {
-            println!("failed to read events: {}", err);
-            return None;
-        }
-        let quote = &self.events_buffer[self.idx];
+        let quote = match self.events_buffer.get(self.idx) {
+            Some(val) => val,
+            None => {
+                if let Err(err) = self.read_events_to_buffer() {
+                    println!("failed to read events: {}", err);
+                    return None;
+                }
+                match self.events_buffer.get(self.idx) {
+                    Some(val) => val,
+                    None => return None,
+                }
+            }
+        };
 
-        Some(MarketDataEvent::NewQuote((*quote).clone().into()))
+        let event = MarketDataEvent::NewQuote((*quote).clone().into());
+        if event.timestamp() < self.last_ts {
+            panic!("incorrect sequence of events")
+        };
+
+        self.idx += 1;
+
+        self.last_ts = event.timestamp();
+        Some(event)
     }
 }
 
 struct SampleStrategy {
     has_open_order: bool,
+    last_ts: Timestamp,
+    seen_events: Vec<Event>,
 }
 
 impl SampleStrategy {
     fn new() -> Self {
         Self {
             has_open_order: false,
+            last_ts: 0,
+            seen_events: vec![],
         }
     }
 
@@ -168,12 +189,33 @@ impl SampleStrategy {
 
 impl Actor for SampleStrategy {
     fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+        if event.timestamp() < self.last_ts {
+            panic!(
+                "timestamp sequence is broken. event: {:#?} seen_events: {:#?}",
+                event, self.seen_events
+            )
+        }
+
+        self.seen_events.push((*event).clone());
+        self.last_ts = event.timestamp();
+
         match event {
             Event::NewQuote(quote) => self.on_quote(quote, gw_router),
-            Event::UDSOrderUpdate(msg) => {
-                println!("{:?}", &msg);
-                panic!("uds arrived");
-            }
+            Event::UDSOrderUpdate(msg) => match msg.order_status {
+                OrderStatus::NEW => {
+                    let request = CancelOrderRequest {
+                        client_order_id: msg.client_order_id.as_ref().unwrap().clone(),
+                        exchange_order_id: msg.exchange_order_id.as_ref().unwrap().clone(),
+                        exchange: msg.exchange.clone(),
+                        symbol: msg.symbol.clone(),
+                    };
+                    gw_router.cancel_order(request).unwrap();
+                }
+                OrderStatus::CANCELED => {
+                    self.has_open_order = false;
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
