@@ -4,7 +4,7 @@ use crate::common::events::{
 };
 use crate::common::market_data::MarketDataEvent;
 use crate::common::order::Order;
-use crate::common::types::{Exchange, ExecutionType, OrderStatus, Timestamp};
+use crate::common::types::{Exchange, ExecutionType, OrderStatus, OrderType, Side, Timestamp};
 use crate::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
 use crate::sim_environment::SimulatedBroker;
 use crossbeam_channel::Receiver;
@@ -54,7 +54,13 @@ impl SimBroker {
         }
     }
 
+    fn check_order_expiration(&mut self, ts: Timestamp) {
+        // TODO
+    }
+
     fn execute_requests_after_ts(&mut self, ts: Timestamp) {
+        self.check_order_expiration(ts);
+
         if self.pending_requests.len() == 0 {
             return;
         }
@@ -82,6 +88,78 @@ impl SimBroker {
 
     fn update_orders_on_md(&mut self, md: &MarketDataEvent) {
         // Update order state, generate UDS and put them into buffer
+        if self.open_orders.len() == 0 {
+            return;
+        }
+
+        let md_symbol = md.symbol();
+        let order_ids_to_check: Vec<InternalID> = self
+            .open_orders
+            .iter()
+            .filter(|(_, v)| v.symbol == md_symbol.as_str())
+            .map(|(&k, v)| k)
+            .collect();
+
+        if order_ids_to_check.len() == 0 {
+            return;
+        }
+
+        for internal_id in order_ids_to_check {
+            let order = self.open_orders.get(&internal_id).unwrap();
+            match &order.r#type {
+                OrderType::LIMIT => self.execute_limit_order(md, internal_id),
+                _ => unimplemented!(),
+            }
+        }
+    }
+
+    fn execute_limit_order(&mut self, md: &MarketDataEvent, internal_order_id: InternalID) {
+        let order = self.open_orders.get(&internal_order_id).unwrap();
+        let order_price = order.price.unwrap();
+        let filled = match order.side {
+            Side::BUY => match md {
+                MarketDataEvent::NewMarketTrade(t) => t.last_price <= order_price,
+                MarketDataEvent::NewQuote(q) => q.ask <= order_price,
+            },
+            Side::SELL => match md {
+                MarketDataEvent::NewMarketTrade(t) => t.last_price >= order_price,
+                MarketDataEvent::NewQuote(q) => q.bid >= order_price,
+            },
+        };
+
+        if !filled {
+            return;
+        }
+
+        let mut order = self.open_orders.remove(&internal_order_id).unwrap();
+        order.status = OrderStatus::FILLED;
+        order.filled_quantity = Some(order.quantity);
+        order.avg_fill_price = Some(order_price);
+        order.update_ts = md.timestamp();
+
+        let order_update = OrderUpdate {
+            timestamp: order.update_ts + self.internal_latency,
+            symbol: order.symbol.clone(),
+            exchange: order.exchange.clone(),
+            side: order.side.clone(),
+            client_order_id: Some(order.client_order_id.clone()),
+            exchange_order_id: Some(order.exchange_order_id.as_ref().unwrap().clone()),
+            order_type: Some(order.r#type.clone()),
+            time_in_force: Some(order.time_in_force.clone()),
+            original_qty: order.quantity,
+            original_price: Some(order_price),
+            average_price: Some(order_price),
+            stop_price: None,
+            execution_type: ExecutionType::TRADE,
+            order_status: OrderStatus::FILLED,
+            last_filled_qty: Some(order.quantity),
+            accumulated_filled_qty: Some(order.quantity),
+            last_filled_price: Some(order_price),
+            last_trade_time: Some(order.update_ts),
+        };
+
+        self.add_generated_event(Event::UDSOrderUpdate(order_update));
+        self.done_orders.insert(internal_order_id, order);
     }
 
     fn on_new_order_request(&mut self, request: &NewOrderRequest, ts: Timestamp) {

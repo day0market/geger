@@ -86,5 +86,5 @@ pub struct OrderUpdate {
     pub last_filled_qty: Option<f64>,
     pub accumulated_filled_qty: Option<f64>,
     pub last_filled_price: Option<f64>,
-    pub last_trade_time: Option<f64>,
+    pub last_trade_time: Option<Timestamp>,
 }

@@ -25,6 +25,13 @@ impl MarketDataEvent {
             | Self::NewMarketTrade(Trade { exchange, .. }) => exchange.clone(),
         }
     }
+
+    pub fn symbol(&self) -> Symbol {
+        match self {
+            Self::NewQuote(q) => q.symbol.clone(),
+            Self::NewMarketTrade(t) => t.symbol.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
