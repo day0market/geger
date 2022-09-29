@@ -15,7 +15,7 @@ use std::{env, fs};
 const TRADE_SYMBOL: &str = "test_ok";
 const TRADE_EXCHANGE: &str = "test_exchange_ok";
 const NON_TRADE_EXCHANGE: &str = "test_exchange_not_ok";
-const FIXTURE_PATH: &str = "data/test/test_md.json";
+const FIXTURE_PATH: &str = "data/test/test_sim_environment_md.json";
 
 struct TestEventSequenceMDProvider {
     md_events: Vec<MarketDataEvent>,
