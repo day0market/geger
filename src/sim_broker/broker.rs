@@ -33,10 +33,15 @@ pub struct SimBroker {
 
     wire_latency: Timestamp,
     internal_latency: Timestamp,
+    strict_execution: bool,
 }
 
 impl SimBroker {
-    pub fn new(exchange: Exchange, incoming_request_receiver: Receiver<ExchangeRequest>) -> Self {
+    pub fn new(
+        exchange: Exchange,
+        incoming_request_receiver: Receiver<ExchangeRequest>,
+        strict_execution: bool,
+    ) -> Self {
         Self {
             exchange,
             last_ts: 0,
@@ -51,6 +56,7 @@ impl SimBroker {
             incoming_request_receiver,
             wire_latency: 5,
             internal_latency: 2,
+            strict_execution,
         }
     }
 
@@ -118,11 +124,23 @@ impl SimBroker {
         let order_price = order.price.unwrap();
         let filled = match order.side {
             Side::BUY => match md {
-                MarketDataEvent::NewMarketTrade(t) => t.last_price <= order_price,
+                MarketDataEvent::NewMarketTrade(t) => {
+                    if self.strict_execution {
+                        t.last_price < order_price
+                    } else {
+                        t.last_price <= order_price
+                    }
+                }
                 MarketDataEvent::NewQuote(q) => q.ask <= order_price,
             },
             Side::SELL => match md {
-                MarketDataEvent::NewMarketTrade(t) => t.last_price >= order_price,
+                MarketDataEvent::NewMarketTrade(t) => {
+                    if self.strict_execution {
+                        t.last_price > order_price
+                    } else {
+                        t.last_price >= order_price
+                    }
+                }
                 MarketDataEvent::NewQuote(q) => q.bid >= order_price,
             },
         };

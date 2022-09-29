@@ -228,7 +228,7 @@ fn main() {
     let (gw_sender, gw_receiver) = unbounded();
 
     let sim_broker_name: Exchange = SIM_BROKER_EXCHANGE.to_string();
-    let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver);
+    let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver, true);
     let mut sim_trading = SimulatedEnvironment::new(md_provider);
     if let Err(err) = sim_trading.add_broker(sim_broker) {
         panic!("{:?}", err)
