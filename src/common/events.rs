@@ -3,8 +3,9 @@ use crate::common::types::{
     ClientOrderId, Exchange, ExchangeOrderId, ExecutionType, OrderStatus, OrderType, Side, Symbol,
     TimeInForce, Timestamp,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Event {
     NewMarketTrade(Trade),
     NewQuote(Quote),
@@ -38,28 +39,28 @@ impl From<MarketDataEvent> for Event {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NewOrderAccepted {
     pub timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NewOrderRejected {
     pub timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub reason: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CancelOrderAccepted {
     pub timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CancelOrderRejected {
     pub timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
@@ -67,7 +68,7 @@ pub struct CancelOrderRejected {
     pub reason: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderUpdate {
     pub timestamp: Timestamp,
     pub symbol: Symbol,
@@ -86,5 +87,5 @@ pub struct OrderUpdate {
     pub last_filled_qty: Option<f64>,
     pub accumulated_filled_qty: Option<f64>,
     pub last_filled_price: Option<f64>,
-    pub last_trade_time: Option<f64>,
+    pub last_trade_time: Option<Timestamp>,
 }

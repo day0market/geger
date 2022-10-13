@@ -44,4 +44,8 @@ impl<T: EventProvider, S: Actor> Core<T, S> {
             self.strategy.on_event(&event, &mut self.gateway_router);
         }
     }
+
+    pub fn get_strategy(&self) -> &S {
+        return &self.strategy;
+    }
 }

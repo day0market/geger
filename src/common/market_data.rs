@@ -1,7 +1,7 @@
 use crate::common::types::{Exchange, Symbol, Timestamp};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum MarketDataEvent {
     NewMarketTrade(Trade),
     NewQuote(Quote),
@@ -25,6 +25,13 @@ impl MarketDataEvent {
             | Self::NewMarketTrade(Trade { exchange, .. }) => exchange.clone(),
         }
     }
+
+    pub fn symbol(&self) -> Symbol {
+        match self {
+            Self::NewQuote(q) => q.symbol.clone(),
+            Self::NewMarketTrade(t) => t.symbol.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -39,7 +46,7 @@ pub struct Trade {
     pub received_timestamp: Timestamp,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Quote {
     pub symbol: Symbol,
     pub exchange: Exchange,
