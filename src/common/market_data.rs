@@ -8,6 +8,23 @@ pub enum MarketDataEvent {
 }
 
 impl MarketDataEvent {
+    pub fn set_timestamp(&mut self, ts: Timestamp) {
+        match self {
+            Self::NewQuote(q) => q.received_timestamp = ts,
+            Self::NewMarketTrade(t) => t.received_timestamp = ts,
+        }
+    }
+
+    pub fn exchange_timestamp(&self) -> Timestamp {
+        match self {
+            Self::NewQuote(Quote {
+                exchange_timestamp, ..
+            })
+            | Self::NewMarketTrade(Trade {
+                exchange_timestamp, ..
+            }) => *exchange_timestamp,
+        }
+    }
     pub fn timestamp(&self) -> Timestamp {
         match self {
             Self::NewQuote(Quote {

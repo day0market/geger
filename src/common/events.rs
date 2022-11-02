@@ -28,6 +28,18 @@ impl Event {
             Self::UDSOrderUpdate(o) => o.timestamp,
         }
     }
+
+    pub fn exchange_timestamp(&self) -> Timestamp {
+        match self {
+            Self::NewMarketTrade(t) => t.exchange_timestamp,
+            Self::NewQuote(q) => q.exchange_timestamp,
+            Self::ResponseNewOrderAccepted(r) => r.exchange_timestamp,
+            Self::ResponseNewOrderRejected(r) => r.exchange_timestamp,
+            Self::ResponseCancelOrderAccepted(r) => r.exchange_timestamp,
+            Self::ResponseCancelOrderRejected(r) => r.exchange_timestamp,
+            Self::UDSOrderUpdate(o) => o.exchange_timestamp,
+        }
+    }
 }
 
 impl From<MarketDataEvent> for Event {
@@ -42,6 +54,7 @@ impl From<MarketDataEvent> for Event {
 #[derive(Debug, Clone, Serialize)]
 pub struct NewOrderAccepted {
     pub timestamp: Timestamp,
+    pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
 }
@@ -49,6 +62,7 @@ pub struct NewOrderAccepted {
 #[derive(Debug, Clone, Serialize)]
 pub struct NewOrderRejected {
     pub timestamp: Timestamp,
+    pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub reason: String,
 }
@@ -56,6 +70,7 @@ pub struct NewOrderRejected {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CancelOrderAccepted {
     pub timestamp: Timestamp,
+    pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
 }
@@ -63,6 +78,7 @@ pub struct CancelOrderAccepted {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CancelOrderRejected {
     pub timestamp: Timestamp,
+    pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: Option<ExchangeOrderId>,
     pub reason: String,
@@ -71,6 +87,7 @@ pub struct CancelOrderRejected {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrderUpdate {
     pub timestamp: Timestamp,
+    pub exchange_timestamp: Timestamp,
     pub symbol: Symbol,
     pub exchange: Exchange,
     pub side: Side,

@@ -41,6 +41,8 @@ impl SimBroker {
         exchange: Exchange,
         incoming_request_receiver: Receiver<ExchangeRequest>,
         strict_execution: bool,
+        wire_latency: Option<u64>,
+        internal_latency: Option<u64>,
     ) -> Self {
         Self {
             exchange,
@@ -54,8 +56,8 @@ impl SimBroker {
             pending_requests: HashMap::new(),
             generated_events: HashMap::new(),
             incoming_request_receiver,
-            wire_latency: 5,
-            internal_latency: 2,
+            wire_latency: wire_latency.unwrap_or(0),
+            internal_latency: internal_latency.unwrap_or(0),
             strict_execution,
         }
     }
@@ -153,10 +155,11 @@ impl SimBroker {
         order.status = OrderStatus::FILLED;
         order.filled_quantity = Some(order.quantity);
         order.avg_fill_price = Some(order_price);
-        order.update_ts = md.timestamp();
+        order.update_ts = md.exchange_timestamp();
 
         let order_update = OrderUpdate {
-            timestamp: order.update_ts + self.internal_latency,
+            exchange_timestamp: order.update_ts + self.internal_latency,
+            timestamp: order.update_ts + self.internal_latency + self.wire_latency,
             symbol: order.symbol.clone(),
             exchange: order.exchange.clone(),
             side: order.side.clone(),
@@ -183,7 +186,8 @@ impl SimBroker {
     fn on_new_order_request(&mut self, request: &NewOrderRequest, ts: Timestamp) {
         if self.order_id_mapping.contains_key(&request.client_order_id) {
             let order_rejected = NewOrderRejected {
-                timestamp: ts,
+                exchange_timestamp: ts + self.internal_latency,
+                timestamp: ts + self.internal_latency + self.wire_latency,
                 client_order_id: request.client_order_id.clone(),
                 reason: "duplicate client order id".to_string(),
             };
@@ -195,7 +199,8 @@ impl SimBroker {
         let exchange_order_id = self.last_exchange_order_id;
         let exchange_order_id_str = self.last_exchange_order_id.to_string();
         let order_accepted = NewOrderAccepted {
-            timestamp: ts,
+            exchange_timestamp: ts + self.internal_latency,
+            timestamp: ts + self.internal_latency + self.wire_latency,
             client_order_id: request.client_order_id.to_string(),
             exchange_order_id: exchange_order_id_str.clone(),
         };
@@ -203,7 +208,8 @@ impl SimBroker {
 
         let order_update = OrderUpdate {
             exchange: request.exchange.clone(),
-            timestamp: ts + self.internal_latency,
+            exchange_timestamp: ts + self.internal_latency,
+            timestamp: ts + self.internal_latency + self.wire_latency,
             symbol: request.symbol.clone(),
             side: request.side.clone(),
             client_order_id: Some(request.client_order_id.clone()),
@@ -244,7 +250,8 @@ impl SimBroker {
             Ok(val) => val,
             Err(_) => {
                 let cancel_rejected = CancelOrderRejected {
-                    timestamp: ts,
+                    timestamp: ts + self.internal_latency + self.wire_latency,
+                    exchange_timestamp: ts + self.internal_latency,
                     client_order_id: request.client_order_id.clone(),
                     exchange_order_id: Some(request.exchange_order_id.clone()),
                     reason: "invalid exchange order id".to_string(),
@@ -258,7 +265,8 @@ impl SimBroker {
             Some(order) => order,
             None => {
                 let cancel_rejected = CancelOrderRejected {
-                    timestamp: ts,
+                    timestamp: ts + self.internal_latency + self.wire_latency,
+                    exchange_timestamp: ts + self.internal_latency,
                     client_order_id: request.client_order_id.clone(),
                     exchange_order_id: Some(request.exchange_order_id.clone()),
                     reason: "order not found".to_string(),
@@ -275,14 +283,16 @@ impl SimBroker {
         let exchange_order_id_str = exchange_order_id.to_string();
 
         let cancel_accepted = CancelOrderAccepted {
-            timestamp: ts,
+            timestamp: ts + self.internal_latency + self.wire_latency,
+            exchange_timestamp: ts + self.internal_latency,
             client_order_id: order.client_order_id.clone(),
             exchange_order_id: exchange_order_id_str.clone(),
         };
         self.add_generated_event(Event::ResponseCancelOrderAccepted(cancel_accepted));
         let order_update = OrderUpdate {
             exchange: request.exchange.clone(),
-            timestamp: ts + self.internal_latency,
+            timestamp: ts + self.internal_latency + self.wire_latency,
+            exchange_timestamp: ts + self.internal_latency,
             symbol: order.symbol.clone(),
             side: order.side.clone(),
             client_order_id: Some(order.client_order_id.clone()),
@@ -313,7 +323,7 @@ impl SimBroker {
 
         let event_ids: Vec<u64> = self.generated_events.keys().map(|&k| k).collect();
         for event_id in event_ids {
-            if &self.generated_events[&event_id].timestamp() > &ts {
+            if &self.generated_events[&event_id].exchange_timestamp() >= &ts {
                 continue;
             }
 
@@ -357,11 +367,19 @@ impl SimulatedBroker for SimBroker {
     }
 
     fn on_new_market_data(&mut self, md: &MarketDataEvent) -> Vec<Event> {
-        let md_ts = md.timestamp();
+        let md_ts = md.exchange_timestamp();
+        let mut md_forward = md.clone();
+        md_forward.set_timestamp(self.estimate_market_data_timestamp(md));
+        self.add_generated_event(md_forward.into());
+
         self.process_requests_on_new_ts(md_ts);
         self.update_orders_on_md(md);
         let events = self.get_generated_events_before_ts(md_ts);
         self.last_ts = md_ts;
         events
+    }
+
+    fn estimate_market_data_timestamp(&self, md: &MarketDataEvent) -> Timestamp {
+        return md.exchange_timestamp() + self.wire_latency;
     }
 }

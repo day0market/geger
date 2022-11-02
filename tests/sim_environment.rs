@@ -166,14 +166,25 @@ impl Actor for TestStrategy {
 fn check_event_sequence() {
     let provider = TestEventSequenceMDProvider::new();
     let strategy = TestStrategy::new();
-    let mut sim_trading = SimulatedEnvironment::new(provider);
+    let mut sim_trading = SimulatedEnvironment::new(provider, None);
 
     let (gw_sender_ok, gw_receiver_ok) = unbounded();
-    let sim_broker_ok = SimBroker::new(TRADE_EXCHANGE.to_string(), gw_receiver_ok, true);
+    let sim_broker_ok = SimBroker::new(
+        TRADE_EXCHANGE.to_string(),
+        gw_receiver_ok,
+        true,
+        Some(100),
+        Some(5),
+    );
 
     let (gw_sender_not_ok, gw_receiver_not_ok) = unbounded();
-    let sim_broker_not_ok =
-        SimBroker::new(NON_TRADE_EXCHANGE.to_string(), gw_receiver_not_ok, true);
+    let sim_broker_not_ok = SimBroker::new(
+        NON_TRADE_EXCHANGE.to_string(),
+        gw_receiver_not_ok,
+        true,
+        Some(50),
+        Some(10),
+    );
 
     if let Err(err) = sim_trading.add_broker(sim_broker_ok) {
         panic!("{:?}", err)
