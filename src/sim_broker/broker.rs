@@ -315,18 +315,11 @@ impl SimBroker {
         self.done_orders.insert(exchange_order_id, order);
     }
 
-    fn get_generated_events_before_ts(&mut self, ts: Timestamp) -> Vec<Event> {
+    fn get_generated_events(&mut self) -> Vec<Event> {
         let mut events = vec![];
-        if self.generated_events.len() == 0 {
-            return events;
-        }
 
         let event_ids: Vec<u64> = self.generated_events.keys().map(|&k| k).collect();
         for event_id in event_ids {
-            if &self.generated_events[&event_id].exchange_timestamp() >= &ts {
-                continue;
-            }
-
             let event = match self.generated_events.remove(&event_id) {
                 Some(event) => event,
                 None => unreachable!(),
@@ -360,22 +353,23 @@ impl SimulatedBroker for SimBroker {
     }
 
     fn on_new_timestamp(&mut self, ts: Timestamp) -> Vec<Event> {
-        self.process_requests_on_new_ts(ts);
-        let events = self.get_generated_events_before_ts(ts);
         self.last_ts = ts;
+        self.process_requests_on_new_ts(ts);
+        let events = self.get_generated_events();
+
         events
     }
 
     fn on_new_market_data(&mut self, md: &MarketDataEvent) -> Vec<Event> {
         let md_ts = md.exchange_timestamp();
+        self.last_ts = md_ts;
         let mut md_forward = md.clone();
         md_forward.set_timestamp(self.estimate_market_data_timestamp(md));
         self.add_generated_event(md_forward.into());
 
         self.process_requests_on_new_ts(md_ts);
         self.update_orders_on_md(md);
-        let events = self.get_generated_events_before_ts(md_ts);
-        self.last_ts = md_ts;
+        let events = self.get_generated_events();
         events
     }
 
