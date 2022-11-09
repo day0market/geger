@@ -1,4 +1,4 @@
-use crate::common::types::{Exchange, Symbol, Timestamp};
+use crate::common::types::{EventId, Exchange, Symbol, Timestamp};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -51,8 +51,9 @@ impl MarketDataEvent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Trade {
+    pub event_id: Option<EventId>,
     pub symbol: Symbol,
     pub exchange: Exchange,
 
@@ -63,8 +64,10 @@ pub struct Trade {
     pub received_timestamp: Timestamp,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Quote {
+    pub event_id: Option<EventId>,
+
     pub symbol: Symbol,
     pub exchange: Exchange,
 

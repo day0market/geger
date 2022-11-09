@@ -4,14 +4,18 @@ use crate::common::events::{
 };
 use crate::common::market_data::MarketDataEvent;
 use crate::common::order::Order;
-use crate::common::types::{Exchange, ExecutionType, OrderStatus, OrderType, Side, Timestamp};
+use crate::common::types::{
+    EventId, Exchange, ExecutionType, OrderStatus, OrderType, Side, Timestamp,
+};
 use crate::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
 use crate::sim_environment::SimulatedBroker;
 use crossbeam_channel::Receiver;
+use log::debug;
 use std::collections::HashMap;
 
 type InternalID = u64;
 
+#[derive(Debug)]
 struct SimBrokerExchangeRequest {
     ack_timestamp: Timestamp,
     request_id: InternalID,
@@ -23,6 +27,7 @@ pub struct SimBroker {
     last_exchange_order_id: InternalID,
     last_request_id: InternalID,
     last_generated_event_id: InternalID,
+    public_event_id: InternalID,
     last_ts: Timestamp,
     open_orders: HashMap<InternalID, Order>,
     done_orders: HashMap<InternalID, Order>,
@@ -50,6 +55,7 @@ impl SimBroker {
             last_exchange_order_id: 0,
             last_request_id: 0,
             last_generated_event_id: 0,
+            public_event_id: 0,
             open_orders: HashMap::new(),
             done_orders: HashMap::new(),
             order_id_mapping: HashMap::new(),
@@ -60,6 +66,11 @@ impl SimBroker {
             internal_latency: internal_latency.unwrap_or(0),
             strict_execution,
         }
+    }
+
+    fn next_public_event_id(&mut self) -> EventId {
+        self.public_event_id += 1;
+        self.public_event_id.to_string()
     }
 
     fn check_order_expiration(&mut self, ts: Timestamp) {
@@ -123,6 +134,9 @@ impl SimBroker {
 
     fn execute_limit_order(&mut self, md: &MarketDataEvent, internal_order_id: InternalID) {
         let order = self.open_orders.get(&internal_order_id).unwrap();
+        if order.create_ts > md.exchange_timestamp() {
+            return;
+        }
         let order_price = order.price.unwrap();
         let filled = match order.side {
             Side::BUY => match md {
@@ -151,6 +165,15 @@ impl SimBroker {
             return;
         }
 
+        debug!(
+            "execute order [{}]. event_ts: {} order_ts:{} order:{:?} event:{:?}",
+            &order.client_order_id,
+            md.exchange_timestamp(),
+            &order.update_ts,
+            &order,
+            md
+        );
+
         let mut order = self.open_orders.remove(&internal_order_id).unwrap();
         order.status = OrderStatus::FILLED;
         order.filled_quantity = Some(order.quantity);
@@ -158,6 +181,7 @@ impl SimBroker {
         order.update_ts = md.exchange_timestamp();
 
         let order_update = OrderUpdate {
+            event_id: self.next_public_event_id(),
             exchange_timestamp: order.update_ts + self.internal_latency,
             timestamp: order.update_ts + self.internal_latency + self.wire_latency,
             symbol: order.symbol.clone(),
@@ -186,6 +210,8 @@ impl SimBroker {
     fn on_new_order_request(&mut self, request: &NewOrderRequest, ts: Timestamp) {
         if self.order_id_mapping.contains_key(&request.client_order_id) {
             let order_rejected = NewOrderRejected {
+                event_id: self.next_public_event_id(),
+                request_id: Some(request.request_id.clone()),
                 exchange_timestamp: ts + self.internal_latency,
                 timestamp: ts + self.internal_latency + self.wire_latency,
                 client_order_id: request.client_order_id.clone(),
@@ -198,18 +224,22 @@ impl SimBroker {
         self.last_exchange_order_id += 1;
         let exchange_order_id = self.last_exchange_order_id;
         let exchange_order_id_str = self.last_exchange_order_id.to_string();
+        let exchange_ts = ts + self.internal_latency;
         let order_accepted = NewOrderAccepted {
-            exchange_timestamp: ts + self.internal_latency,
-            timestamp: ts + self.internal_latency + self.wire_latency,
+            event_id: self.next_public_event_id(),
+            request_id: Some(request.request_id.clone()),
+            exchange_timestamp: exchange_ts,
+            timestamp: exchange_ts + self.wire_latency,
             client_order_id: request.client_order_id.to_string(),
             exchange_order_id: exchange_order_id_str.clone(),
         };
         self.add_generated_event(Event::ResponseNewOrderAccepted(order_accepted));
 
         let order_update = OrderUpdate {
+            event_id: self.next_public_event_id(),
             exchange: request.exchange.clone(),
-            exchange_timestamp: ts + self.internal_latency,
-            timestamp: ts + self.internal_latency + self.wire_latency,
+            exchange_timestamp: exchange_ts,
+            timestamp: exchange_ts + self.wire_latency,
             symbol: request.symbol.clone(),
             side: request.side.clone(),
             client_order_id: Some(request.client_order_id.clone()),
@@ -229,10 +259,14 @@ impl SimBroker {
         };
 
         self.add_generated_event(Event::UDSOrderUpdate(order_update));
-        let mut order = Order::new_order_from_exchange_request(request, ts);
-        if let Err(err) = order.set_confirmed_by_exchange(exchange_order_id_str.clone(), ts) {
+        let mut order = Order::new_order_from_exchange_request(request, exchange_ts);
+        if let Err(err) =
+            order.set_confirmed_by_exchange(exchange_order_id_str.clone(), exchange_ts)
+        {
             panic!("failed to confirm order: {:?}", err)
         };
+
+        debug!("insert open order: {:?}", &order);
 
         self.open_orders.insert(exchange_order_id, order);
         self.order_id_mapping
@@ -240,6 +274,7 @@ impl SimBroker {
     }
 
     fn add_generated_event(&mut self, event: Event) {
+        debug!("add generated event: {:?}", &event);
         self.last_generated_event_id += 1;
         self.generated_events
             .insert(self.last_generated_event_id, event);
@@ -250,6 +285,8 @@ impl SimBroker {
             Ok(val) => val,
             Err(_) => {
                 let cancel_rejected = CancelOrderRejected {
+                    event_id: self.next_public_event_id(),
+                    request_id: Some(request.request_id.clone()),
                     timestamp: ts + self.internal_latency + self.wire_latency,
                     exchange_timestamp: ts + self.internal_latency,
                     client_order_id: request.client_order_id.clone(),
@@ -265,6 +302,8 @@ impl SimBroker {
             Some(order) => order,
             None => {
                 let cancel_rejected = CancelOrderRejected {
+                    event_id: self.next_public_event_id(),
+                    request_id: Some(request.request_id.clone()),
                     timestamp: ts + self.internal_latency + self.wire_latency,
                     exchange_timestamp: ts + self.internal_latency,
                     client_order_id: request.client_order_id.clone(),
@@ -276,6 +315,8 @@ impl SimBroker {
             }
         };
 
+        debug!("delete order: {:?}", &order);
+
         if let Err(err) = &order.cancel(ts) {
             panic!("failed to cancel order: {:?}", err)
         };
@@ -283,6 +324,8 @@ impl SimBroker {
         let exchange_order_id_str = exchange_order_id.to_string();
 
         let cancel_accepted = CancelOrderAccepted {
+            event_id: self.next_public_event_id(),
+            request_id: Some(request.request_id.clone()),
             timestamp: ts + self.internal_latency + self.wire_latency,
             exchange_timestamp: ts + self.internal_latency,
             client_order_id: order.client_order_id.clone(),
@@ -290,6 +333,7 @@ impl SimBroker {
         };
         self.add_generated_event(Event::ResponseCancelOrderAccepted(cancel_accepted));
         let order_update = OrderUpdate {
+            event_id: self.next_public_event_id(),
             exchange: request.exchange.clone(),
             timestamp: ts + self.internal_latency + self.wire_latency,
             exchange_timestamp: ts + self.internal_latency,
@@ -328,6 +372,8 @@ impl SimBroker {
             events.push(event);
         }
 
+        debug!("newly generated events: {:?}", &events);
+        events.sort_by()
         events
     }
 
@@ -335,10 +381,12 @@ impl SimBroker {
         while let Ok(exchange_request) = self.incoming_request_receiver.try_recv() {
             self.last_request_id += 1;
             let wrapped_request = SimBrokerExchangeRequest {
-                ack_timestamp: self.last_ts + self.wire_latency,
+                ack_timestamp: exchange_request.creation_ts() + self.wire_latency,
                 request_id: self.last_request_id,
                 exchange_request,
             };
+
+            debug!("insert pending request: {:?}", &wrapped_request);
 
             self.pending_requests
                 .insert(self.last_request_id, wrapped_request);

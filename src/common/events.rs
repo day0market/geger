@@ -1,11 +1,11 @@
 use crate::common::market_data::{MarketDataEvent, Quote, Trade};
 use crate::common::types::{
-    ClientOrderId, Exchange, ExchangeOrderId, ExecutionType, OrderStatus, OrderType, Side, Symbol,
-    TimeInForce, Timestamp,
+    ClientOrderId, EventId, Exchange, ExchangeOrderId, ExchangeRequestID, ExecutionType,
+    OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp,
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub enum Event {
     NewMarketTrade(Trade),
     NewQuote(Quote),
@@ -51,32 +51,40 @@ impl From<MarketDataEvent> for Event {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct NewOrderAccepted {
+    pub event_id: EventId,
+    pub request_id: Option<ExchangeRequestID>,
     pub timestamp: Timestamp,
     pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct NewOrderRejected {
+    pub event_id: EventId,
+    pub request_id: Option<ExchangeRequestID>,
     pub timestamp: Timestamp,
     pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub reason: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CancelOrderAccepted {
+    pub event_id: EventId,
+    pub request_id: Option<ExchangeRequestID>,
     pub timestamp: Timestamp,
     pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CancelOrderRejected {
+    pub event_id: EventId,
+    pub request_id: Option<ExchangeRequestID>,
     pub timestamp: Timestamp,
     pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
@@ -84,8 +92,9 @@ pub struct CancelOrderRejected {
     pub reason: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OrderUpdate {
+    pub event_id: EventId,
     pub timestamp: Timestamp,
     pub exchange_timestamp: Timestamp,
     pub symbol: Symbol,

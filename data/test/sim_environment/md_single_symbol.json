@@ -102,10 +102,22 @@
     }
   },
   {
+    "NewQuote": {
+      "symbol": "test_ok",
+      "exchange": "test_exchange_ok",
+      "bid": 1.09,
+      "ask": 1.1,
+      "bid_size": 3.0,
+      "ask_size": 4.0,
+      "exchange_timestamp": 410,
+      "received_timestamp": 410
+    }
+  },
+  {
     "NewMarketTrade": {
       "symbol": "test_ok",
       "exchange": "test_exchange_ok",
-      "last_price": 1.4,
+      "last_price": 1.1,
       "last_size": 1.0,
       "exchange_timestamp": 410,
       "received_timestamp": 410
@@ -299,6 +311,30 @@
       "ask_size": 4.0,
       "exchange_timestamp": 1600,
       "received_timestamp": 1600
+    }
+  },
+  {
+    "NewQuote": {
+      "symbol": "test_ok",
+      "exchange": "test_exchange_ok",
+      "bid": 1.45,
+      "ask": 1.8,
+      "bid_size": 3.0,
+      "ask_size": 4.0,
+      "exchange_timestamp": 1900,
+      "received_timestamp": 1900
+    }
+  },
+  {
+    "NewQuote": {
+      "symbol": "test_ok",
+      "exchange": "test_exchange_ok",
+      "bid": 1.35,
+      "ask": 1.8,
+      "bid_size": 3.0,
+      "ask_size": 4.0,
+      "exchange_timestamp": 1910,
+      "received_timestamp": 1910
     }
   }
 ]
