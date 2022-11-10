@@ -1,7 +1,6 @@
 use crate::common::events::Event;
-use crate::common::types::{ClientOrderId, ExchangeOrderId, OrderType, Side, Symbol, TimeInForce};
 use crate::core::gateway_router::{ExchangeRequest, GatewayRouter};
-use crossbeam_channel::{SendError, Sender};
+use crossbeam_channel::Sender;
 use std::collections::HashMap;
 
 use crate::common::types::Exchange;

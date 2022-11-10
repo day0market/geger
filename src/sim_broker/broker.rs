@@ -116,7 +116,7 @@ impl SimBroker {
             .open_orders
             .iter()
             .filter(|(_, v)| v.symbol == md_symbol.as_str())
-            .map(|(&k, v)| k)
+            .map(|(&k, _)| k)
             .collect();
 
         if order_ids_to_check.len() == 0 {
@@ -216,6 +216,8 @@ impl SimBroker {
                 timestamp: ts + self.internal_latency + self.wire_latency,
                 client_order_id: request.client_order_id.clone(),
                 reason: "duplicate client order id".to_string(),
+                exchange: request.exchange.clone(),
+                symbol: request.symbol.clone(),
             };
             self.add_generated_event(Event::ResponseNewOrderRejected(order_rejected));
             return;
@@ -232,6 +234,8 @@ impl SimBroker {
             timestamp: exchange_ts + self.wire_latency,
             client_order_id: request.client_order_id.to_string(),
             exchange_order_id: exchange_order_id_str.clone(),
+            exchange: request.exchange.clone(),
+            symbol: request.symbol.clone(),
         };
         self.add_generated_event(Event::ResponseNewOrderAccepted(order_accepted));
 
@@ -292,6 +296,8 @@ impl SimBroker {
                     client_order_id: request.client_order_id.clone(),
                     exchange_order_id: Some(request.exchange_order_id.clone()),
                     reason: "invalid exchange order id".to_string(),
+                    exchange: request.exchange.clone(),
+                    symbol: request.symbol.clone(),
                 };
                 self.add_generated_event(Event::ResponseCancelOrderRejected(cancel_rejected));
                 return;
@@ -309,6 +315,8 @@ impl SimBroker {
                     client_order_id: request.client_order_id.clone(),
                     exchange_order_id: Some(request.exchange_order_id.clone()),
                     reason: "order not found".to_string(),
+                    exchange: request.exchange.clone(),
+                    symbol: request.symbol.clone(),
                 };
                 self.add_generated_event(Event::ResponseCancelOrderRejected(cancel_rejected));
                 return;
@@ -330,7 +338,10 @@ impl SimBroker {
             exchange_timestamp: ts + self.internal_latency,
             client_order_id: order.client_order_id.clone(),
             exchange_order_id: exchange_order_id_str.clone(),
+            exchange: request.exchange.clone(),
+            symbol: request.symbol.clone(),
         };
+
         self.add_generated_event(Event::ResponseCancelOrderAccepted(cancel_accepted));
         let order_update = OrderUpdate {
             event_id: self.next_public_event_id(),
@@ -397,6 +408,10 @@ impl SimBroker {
 impl SimulatedBroker for SimBroker {
     fn exchange(&self) -> Exchange {
         self.exchange.clone()
+    }
+
+    fn wire_latency(&self) -> Timestamp {
+        self.wire_latency
     }
 
     fn on_new_timestamp(&mut self, ts: Timestamp) -> Vec<Event> {

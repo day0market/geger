@@ -6,7 +6,6 @@ use log4rs::{
     encode::pattern::PatternEncoder,
     Handle,
 };
-use std::env;
 
 pub fn setup_log(
     log_level: Option<LevelFilter>,
@@ -23,7 +22,7 @@ pub fn setup_log(
 
     let appender_name = "appender";
 
-    let mut config_builder = match log_file_path {
+    let config_builder = match log_file_path {
         Some(path) => {
             let logfile = FileAppender::builder()
                 .encoder(pattern_encoder)
@@ -37,7 +36,7 @@ pub fn setup_log(
         }
     };
 
-    let mut root_builder = Root::builder().appender(appender_name);
+    let root_builder = Root::builder().appender(appender_name);
 
     let config = config_builder.build(root_builder.build(log_level)).unwrap();
     log4rs::init_config(config)

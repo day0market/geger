@@ -22,6 +22,8 @@ const TRADE_SYMBOL: &str = "test_ok";
 const TRADE_EXCHANGE: &str = "test_exchange_ok";
 const NON_TRADE_EXCHANGE: &str = "test_exchange_not_ok";
 const SINGLE_SYMBOL_MD: &str = "data/test/sim_environment/md_single_symbol.json";
+const MULTIPLE_EXCHANGE_SYMBOL_MD: &str =
+    "data/test/sim_environment/md_multiple_symbols_exchanges.json";
 const EXPECTED_COLLECTED_EVENTS_PATH: &str = "data/test/sim_environment/expected_events.json";
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -35,7 +37,7 @@ fn get_expected_events_from_fixture() -> Vec<TestStrategyCollectedEvent> {
     let fixture_path = cwd.join(EXPECTED_COLLECTED_EVENTS_PATH);
     let data = fs::read_to_string(fixture_path.clone()).unwrap();
     let stripped = StripComments::new(data.as_bytes());
-    let mut md_events = serde_json::from_reader(stripped).unwrap();
+    let md_events = serde_json::from_reader(stripped).unwrap();
 
     md_events
 }
@@ -46,20 +48,20 @@ struct TestEventSequenceMDProvider {
 }
 
 impl TestEventSequenceMDProvider {
-    fn new() -> Self {
-        let mut md_events = Self::get_md_events_from_fixture();
+    fn new(fixture_path: &str) -> Self {
+        let md_events = Self::get_md_events_from_fixture(fixture_path);
         Self {
             md_events,
             event_idx: 0,
         }
     }
 
-    fn get_md_events_from_fixture() -> Vec<MarketDataEvent> {
+    fn get_md_events_from_fixture(fixture_path: &str) -> Vec<MarketDataEvent> {
         let cwd = env::current_dir().unwrap();
-        let fixture_path = cwd.join(SINGLE_SYMBOL_MD);
+        let fixture_path = cwd.join(fixture_path);
         let data = fs::read_to_string(fixture_path.clone()).unwrap();
         let stripped = StripComments::new(data.as_bytes());
-        let mut md_events = serde_json::from_reader(stripped).unwrap();
+        let md_events = serde_json::from_reader(stripped).unwrap();
 
         md_events
     }
@@ -126,7 +128,7 @@ impl TestStrategy {
                 self.open_order = None;
                 self.open_order_ts = None;
             }
-            other => unreachable!(),
+            other => unreachable!("{:?}", other),
         }
     }
 
@@ -214,32 +216,35 @@ impl Actor for TestStrategy {
         self.collected_events
             .push(TestStrategyCollectedEvent::Event(collected_event));
 
-        match event {
-            Event::NewQuote(_) | Event::NewMarketTrade(_) => {
-                if let Some(order_ts) = self.open_order_ts {
-                    let order_age = event.timestamp() - order_ts;
-                    info!("order_age: {}", order_age);
-                    if order_age > self.max_order_age {
-                        let clio = self.open_order.as_ref().unwrap().clone();
-                        let cancel_request = CancelOrderRequest {
-                            request_id: self.get_request_id(),
-                            client_order_id: clio.clone(),
-                            exchange_order_id: clio,
-                            exchange: TRADE_EXCHANGE.to_string(),
-                            symbol: TRADE_SYMBOL.to_string(),
-                            creation_ts: event.timestamp(),
-                        };
+        if event.symbol() == TRADE_SYMBOL && event.exchange() == TRADE_EXCHANGE {
+            match event {
+                Event::NewQuote(_) | Event::NewMarketTrade(_) => {
+                    if let Some(order_ts) = self.open_order_ts {
+                        let order_age = event.timestamp() - order_ts;
+                        info!("order_age: {}", order_age);
+                        if order_age > self.max_order_age {
+                            let clio = self.open_order.as_ref().unwrap().clone();
+                            let cancel_request = CancelOrderRequest {
+                                request_id: self.get_request_id(),
+                                client_order_id: clio.clone(),
+                                exchange_order_id: clio,
+                                exchange: TRADE_EXCHANGE.to_string(),
+                                symbol: TRADE_SYMBOL.to_string(),
+                                creation_ts: event.timestamp(),
+                            };
 
-                        info!("hit max order age. cancel request: {:?}", &cancel_request);
-                        self.collected_events
-                            .push(TestStrategyCollectedEvent::ExchangeRequest(
-                                ExchangeRequest::CancelOrder(cancel_request.clone()),
-                            ));
-                        gw_router.cancel_order(cancel_request).unwrap();
-                    }
-                };
+                            info!("hit max order age. cancel request: {:?}", &cancel_request);
+                            self.collected_events.push(
+                                TestStrategyCollectedEvent::ExchangeRequest(
+                                    ExchangeRequest::CancelOrder(cancel_request.clone()),
+                                ),
+                            );
+                            gw_router.cancel_order(cancel_request).unwrap();
+                        }
+                    };
+                }
+                _ => {}
             }
-            _ => {}
         }
 
         match event {
@@ -252,14 +257,14 @@ impl Actor for TestStrategy {
 }
 
 #[test]
-fn check_event_sequence() {
+fn check_event_sequence_single_exchange_symbol() {
     if let Err(err) = setup_log(Some(LevelFilter::Debug), None) {
         panic!("{:?}", err)
     }
 
     let expected_collected_events = get_expected_events_from_fixture();
 
-    let provider = TestEventSequenceMDProvider::new();
+    let provider = TestEventSequenceMDProvider::new(SINGLE_SYMBOL_MD);
     let strategy = TestStrategy::new();
     let mut sim_trading = SimulatedEnvironment::new(provider, None);
 
@@ -298,8 +303,8 @@ fn check_event_sequence() {
     core.run();
 
     let strategy = core.get_strategy();
-    let data = serde_json::to_vec(&strategy.collected_events).unwrap();
-    fs::write("tests/collected_events.json", data).unwrap();
+    //let data = serde_json::to_vec(&strategy.collected_events).unwrap();
+    //fs::write("tests/collected_events.json", data).unwrap();
     assert_eq!(
         &strategy.collected_events.len(),
         &expected_collected_events.len()
@@ -310,4 +315,84 @@ fn check_event_sequence() {
         let found = &expected_collected_events.contains(collected);
         assert!(found);
     }
+}
+
+#[test]
+fn check_event_sequence_multiple_exchanges_symbols() {
+    if let Err(err) = setup_log(Some(LevelFilter::Debug), None) {
+        panic!("{:?}", err)
+    }
+
+    let expected_collected_events = get_expected_events_from_fixture();
+    let expected_md_events =
+        TestEventSequenceMDProvider::get_md_events_from_fixture(MULTIPLE_EXCHANGE_SYMBOL_MD);
+
+    let provider = TestEventSequenceMDProvider::new(MULTIPLE_EXCHANGE_SYMBOL_MD);
+    let strategy = TestStrategy::new();
+    let mut sim_trading = SimulatedEnvironment::new(provider, None);
+
+    let (gw_sender_ok, gw_receiver_ok) = unbounded();
+    let sim_broker_ok = SimBroker::new(
+        TRADE_EXCHANGE.to_string(),
+        gw_receiver_ok,
+        true,
+        Some(100),
+        Some(5),
+    );
+
+    let (gw_sender_not_ok, gw_receiver_not_ok) = unbounded();
+    let sim_broker_not_ok = SimBroker::new(
+        NON_TRADE_EXCHANGE.to_string(),
+        gw_receiver_not_ok,
+        true,
+        Some(50),
+        Some(10),
+    );
+
+    if let Err(err) = sim_trading.add_broker(sim_broker_ok) {
+        panic!("{:?}", err)
+    };
+
+    if let Err(err) = sim_trading.add_broker(sim_broker_not_ok) {
+        panic!("{:?}", err)
+    };
+
+    let mut gw_senders = HashMap::new();
+    gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
+    gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
+
+    let mut core = Core::new(sim_trading, strategy, gw_senders);
+
+    core.run();
+
+    let strategy = core.get_strategy();
+    //let data = serde_json::to_vec(&strategy.collected_events).unwrap();
+    //fs::write("tests/collected_events_multiple.json", data).unwrap();
+
+    for i in 0..expected_collected_events.len() {
+        let expected = &expected_collected_events[i];
+        let found = &strategy.collected_events.contains(expected);
+        if !found {
+            info!("not found: {:?}", &expected)
+        }
+        assert!(found);
+    }
+
+    let mut collected_md_events = vec![];
+    for event in &strategy.collected_events {
+        match event {
+            TestStrategyCollectedEvent::Event(e) => match e {
+                Event::NewQuote(q) => {
+                    collected_md_events.push(MarketDataEvent::NewQuote(q.clone()));
+                }
+                Event::NewMarketTrade(t) => {
+                    collected_md_events.push(MarketDataEvent::NewMarketTrade(t.clone()));
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
+    assert_eq!(collected_md_events.len(), expected_md_events.len())
 }

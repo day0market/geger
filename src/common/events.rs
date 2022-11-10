@@ -40,6 +40,30 @@ impl Event {
             Self::UDSOrderUpdate(o) => o.exchange_timestamp,
         }
     }
+
+    pub fn exchange(&self) -> Exchange {
+        match self {
+            Self::NewMarketTrade(t) => t.exchange.clone(),
+            Self::NewQuote(q) => q.exchange.clone(),
+            Self::ResponseNewOrderAccepted(r) => r.exchange.clone(),
+            Self::ResponseNewOrderRejected(r) => r.exchange.clone(),
+            Self::ResponseCancelOrderAccepted(r) => r.exchange.clone(),
+            Self::ResponseCancelOrderRejected(r) => r.exchange.clone(),
+            Self::UDSOrderUpdate(o) => o.exchange.clone(),
+        }
+    }
+
+    pub fn symbol(&self) -> Exchange {
+        match self {
+            Self::NewMarketTrade(t) => t.symbol.clone(),
+            Self::NewQuote(q) => q.symbol.clone(),
+            Self::ResponseNewOrderAccepted(r) => r.symbol.clone(),
+            Self::ResponseNewOrderRejected(r) => r.symbol.clone(),
+            Self::ResponseCancelOrderAccepted(r) => r.symbol.clone(),
+            Self::ResponseCancelOrderRejected(r) => r.symbol.clone(),
+            Self::UDSOrderUpdate(o) => o.symbol.clone(),
+        }
+    }
 }
 
 impl From<MarketDataEvent> for Event {
@@ -59,6 +83,8 @@ pub struct NewOrderAccepted {
     pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
+    pub exchange: Exchange,
+    pub symbol: Symbol,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -69,6 +95,8 @@ pub struct NewOrderRejected {
     pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub reason: String,
+    pub exchange: Exchange,
+    pub symbol: Symbol,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -79,6 +107,8 @@ pub struct CancelOrderAccepted {
     pub exchange_timestamp: Timestamp,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
+    pub exchange: Exchange,
+    pub symbol: Symbol,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -90,6 +120,8 @@ pub struct CancelOrderRejected {
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: Option<ExchangeOrderId>,
     pub reason: String,
+    pub exchange: Exchange,
+    pub symbol: Symbol,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

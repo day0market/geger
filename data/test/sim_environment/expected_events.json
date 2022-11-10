@@ -147,18 +147,6 @@
   },
   {
     "Event": {
-      "ResponseNewOrderAccepted": {
-        "event_id": "",
-        "request_id": "1",
-        "timestamp": 405,
-        "exchange_timestamp": 305,
-        "client_order_id": "1",
-        "exchange_order_id": "1"
-      }
-    }
-  },
-  {
-    "Event": {
       "UDSOrderUpdate": {
         "event_id": "",
         "timestamp": 405,
@@ -180,6 +168,20 @@
         "accumulated_filled_qty": null,
         "last_filled_price": null,
         "last_trade_time": null
+      }
+    }
+  },
+  {
+    "Event": {
+      "ResponseNewOrderAccepted": {
+        "event_id": "",
+        "request_id": "1",
+        "timestamp": 405,
+        "exchange_timestamp": 305,
+        "client_order_id": "1",
+        "exchange_order_id": "1",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -310,12 +312,14 @@
     "Event": {
       "ResponseCancelOrderRejected": {
         "event_id": "",
-        "request_id": "2",
+        "request_id": "3",
         "timestamp": 715,
         "exchange_timestamp": 615,
         "client_order_id": "1",
         "exchange_order_id": "1",
-        "reason": "order not found"
+        "reason": "order not found",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -323,12 +327,14 @@
     "Event": {
       "ResponseCancelOrderRejected": {
         "event_id": "",
-        "request_id": "3",
+        "request_id": "2",
         "timestamp": 715,
         "exchange_timestamp": 615,
         "client_order_id": "1",
         "exchange_order_id": "1",
-        "reason": "order not found"
+        "reason": "order not found",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -381,7 +387,9 @@
         "timestamp": 805,
         "exchange_timestamp": 705,
         "client_order_id": "2",
-        "exchange_order_id": "2"
+        "exchange_order_id": "2",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -477,7 +485,9 @@
         "exchange_timestamp": 911,
         "client_order_id": "2",
         "exchange_order_id": "2",
-        "reason": "order not found"
+        "reason": "order not found",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -524,18 +534,6 @@
   },
   {
     "Event": {
-      "ResponseNewOrderAccepted": {
-        "event_id": "",
-        "request_id": "6",
-        "timestamp": 1205,
-        "exchange_timestamp": 1105,
-        "client_order_id": "3",
-        "exchange_order_id": "3"
-      }
-    }
-  },
-  {
-    "Event": {
       "UDSOrderUpdate": {
         "event_id": "",
         "timestamp": 1205,
@@ -557,6 +555,20 @@
         "accumulated_filled_qty": null,
         "last_filled_price": null,
         "last_trade_time": null
+      }
+    }
+  },
+  {
+    "Event": {
+      "ResponseNewOrderAccepted": {
+        "event_id": "",
+        "request_id": "6",
+        "timestamp": 1205,
+        "exchange_timestamp": 1105,
+        "client_order_id": "3",
+        "exchange_order_id": "3",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -739,7 +751,9 @@
         "exchange_timestamp": 1355,
         "client_order_id": "3",
         "exchange_order_id": "3",
-        "reason": "order not found"
+        "reason": "order not found",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -752,7 +766,9 @@
         "exchange_timestamp": 1405,
         "client_order_id": "3",
         "exchange_order_id": "3",
-        "reason": "order not found"
+        "reason": "order not found",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -765,7 +781,9 @@
         "exchange_timestamp": 1455,
         "client_order_id": "3",
         "exchange_order_id": "3",
-        "reason": "order not found"
+        "reason": "order not found",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -804,7 +822,9 @@
         "exchange_timestamp": 1505,
         "client_order_id": "3",
         "exchange_order_id": "3",
-        "reason": "order not found"
+        "reason": "order not found",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -817,7 +837,9 @@
         "exchange_timestamp": 1505,
         "client_order_id": "3",
         "exchange_order_id": "3",
-        "reason": "order not found"
+        "reason": "order not found",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
@@ -861,7 +883,9 @@
         "timestamp": 1905,
         "exchange_timestamp": 1805,
         "client_order_id": "4",
-        "exchange_order_id": "4"
+        "exchange_order_id": "4",
+        "exchange": "test_exchange_ok",
+        "symbol": "test_ok"
       }
     }
   },
