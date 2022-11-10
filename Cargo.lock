@@ -202,6 +202,7 @@ version = "0.1.0"
 dependencies = [
  "crossbeam",
  "crossbeam-channel",
+ "json_comments",
  "log",
  "log4rs",
  "rmp",
@@ -282,6 +283,12 @@ checksum = "258451ab10b34f8af53416d1fdab72c22e805f0c92a1136d59470ec0b11138b2"
 dependencies = [
  "wasm-bindgen",
 ]
+
+[[package]]
+name = "json_comments"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41ee439ee368ba4a77ac70d04f14015415af8600d6c894dc1f11bd79758c57d5"
 
 [[package]]
 name = "libc"
