@@ -373,7 +373,6 @@ impl SimBroker {
         }
 
         debug!("newly generated events: {:?}", &events);
-        events.sort_by()
         events
     }
 

@@ -148,7 +148,7 @@
   {
     "Event": {
       "ResponseNewOrderAccepted": {
-        "event_id": "1",
+        "event_id": "",
         "request_id": "1",
         "timestamp": 405,
         "exchange_timestamp": 305,
@@ -160,7 +160,7 @@
   {
     "Event": {
       "UDSOrderUpdate": {
-        "event_id": "2",
+        "event_id": "",
         "timestamp": 405,
         "exchange_timestamp": 305,
         "symbol": "test_ok",
@@ -238,7 +238,7 @@
   {
     "Event": {
       "UDSOrderUpdate": {
-        "event_id": "3",
+        "event_id": "",
         "timestamp": 515,
         "exchange_timestamp": 415,
         "symbol": "test_ok",
@@ -309,8 +309,8 @@
   {
     "Event": {
       "ResponseCancelOrderRejected": {
-        "event_id": "7",
-        "request_id": "3",
+        "event_id": "",
+        "request_id": "2",
         "timestamp": 715,
         "exchange_timestamp": 615,
         "client_order_id": "1",
@@ -322,8 +322,8 @@
   {
     "Event": {
       "ResponseCancelOrderRejected": {
-        "event_id": "6",
-        "request_id": "2",
+        "event_id": "",
+        "request_id": "3",
         "timestamp": 715,
         "exchange_timestamp": 615,
         "client_order_id": "1",
@@ -349,20 +349,8 @@
   },
   {
     "Event": {
-      "ResponseNewOrderAccepted": {
-        "event_id": "4",
-        "request_id": "4",
-        "timestamp": 805,
-        "exchange_timestamp": 705,
-        "client_order_id": "2",
-        "exchange_order_id": "2"
-      }
-    }
-  },
-  {
-    "Event": {
       "UDSOrderUpdate": {
-        "event_id": "5",
+        "event_id": "",
         "timestamp": 805,
         "exchange_timestamp": 705,
         "symbol": "test_ok",
@@ -382,6 +370,18 @@
         "accumulated_filled_qty": null,
         "last_filled_price": null,
         "last_trade_time": null
+      }
+    }
+  },
+  {
+    "Event": {
+      "ResponseNewOrderAccepted": {
+        "event_id": "",
+        "request_id": "4",
+        "timestamp": 805,
+        "exchange_timestamp": 705,
+        "client_order_id": "2",
+        "exchange_order_id": "2"
       }
     }
   },
@@ -413,7 +413,7 @@
   {
     "Event": {
       "UDSOrderUpdate": {
-        "event_id": "8",
+        "event_id": "",
         "timestamp": 811,
         "exchange_timestamp": 711,
         "symbol": "test_ok",
@@ -471,7 +471,7 @@
   {
     "Event": {
       "ResponseCancelOrderRejected": {
-        "event_id": "9",
+        "event_id": "",
         "request_id": "5",
         "timestamp": 1011,
         "exchange_timestamp": 911,
@@ -525,7 +525,7 @@
   {
     "Event": {
       "ResponseNewOrderAccepted": {
-        "event_id": "10",
+        "event_id": "",
         "request_id": "6",
         "timestamp": 1205,
         "exchange_timestamp": 1105,
@@ -537,7 +537,7 @@
   {
     "Event": {
       "UDSOrderUpdate": {
-        "event_id": "11",
+        "event_id": "",
         "timestamp": 1205,
         "exchange_timestamp": 1105,
         "symbol": "test_ok",
@@ -694,7 +694,7 @@
   {
     "Event": {
       "UDSOrderUpdate": {
-        "event_id": "12",
+        "event_id": "",
         "timestamp": 1405,
         "exchange_timestamp": 1305,
         "symbol": "test_ok",
@@ -733,7 +733,7 @@
   {
     "Event": {
       "ResponseCancelOrderRejected": {
-        "event_id": "13",
+        "event_id": "",
         "request_id": "7",
         "timestamp": 1455,
         "exchange_timestamp": 1355,
@@ -746,7 +746,7 @@
   {
     "Event": {
       "ResponseCancelOrderRejected": {
-        "event_id": "14",
+        "event_id": "",
         "request_id": "8",
         "timestamp": 1505,
         "exchange_timestamp": 1405,
@@ -759,7 +759,7 @@
   {
     "Event": {
       "ResponseCancelOrderRejected": {
-        "event_id": "16",
+        "event_id": "",
         "request_id": "9",
         "timestamp": 1555,
         "exchange_timestamp": 1455,
@@ -798,8 +798,8 @@
   {
     "Event": {
       "ResponseCancelOrderRejected": {
-        "event_id": "17",
-        "request_id": "10",
+        "event_id": "",
+        "request_id": "11",
         "timestamp": 1605,
         "exchange_timestamp": 1505,
         "client_order_id": "3",
@@ -811,8 +811,8 @@
   {
     "Event": {
       "ResponseCancelOrderRejected": {
-        "event_id": "15",
-        "request_id": "11",
+        "event_id": "",
+        "request_id": "10",
         "timestamp": 1605,
         "exchange_timestamp": 1505,
         "client_order_id": "3",
@@ -856,7 +856,7 @@
   {
     "Event": {
       "ResponseNewOrderAccepted": {
-        "event_id": "18",
+        "event_id": "",
         "request_id": "12",
         "timestamp": 1905,
         "exchange_timestamp": 1805,
@@ -868,7 +868,7 @@
   {
     "Event": {
       "UDSOrderUpdate": {
-        "event_id": "19",
+        "event_id": "",
         "timestamp": 1905,
         "exchange_timestamp": 1805,
         "symbol": "test_ok",
@@ -921,7 +921,7 @@
   {
     "Event": {
       "UDSOrderUpdate": {
-        "event_id": "20",
+        "event_id": "",
         "timestamp": 2005,
         "exchange_timestamp": 1905,
         "symbol": "test_ok",
