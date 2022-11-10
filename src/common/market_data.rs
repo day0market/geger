@@ -1,4 +1,4 @@
-use crate::common::types::{Exchange, Symbol, Timestamp};
+use crate::common::types::{EventId, Exchange, Symbol, Timestamp};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -8,6 +8,23 @@ pub enum MarketDataEvent {
 }
 
 impl MarketDataEvent {
+    pub fn set_timestamp(&mut self, ts: Timestamp) {
+        match self {
+            Self::NewQuote(q) => q.received_timestamp = ts,
+            Self::NewMarketTrade(t) => t.received_timestamp = ts,
+        }
+    }
+
+    pub fn exchange_timestamp(&self) -> Timestamp {
+        match self {
+            Self::NewQuote(Quote {
+                exchange_timestamp, ..
+            })
+            | Self::NewMarketTrade(Trade {
+                exchange_timestamp, ..
+            }) => *exchange_timestamp,
+        }
+    }
     pub fn timestamp(&self) -> Timestamp {
         match self {
             Self::NewQuote(Quote {
@@ -34,8 +51,9 @@ impl MarketDataEvent {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Trade {
+    pub event_id: Option<EventId>,
     pub symbol: Symbol,
     pub exchange: Exchange,
 
@@ -46,8 +64,10 @@ pub struct Trade {
     pub received_timestamp: Timestamp,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct Quote {
+    pub event_id: Option<EventId>,
+
     pub symbol: Symbol,
     pub exchange: Exchange,
 

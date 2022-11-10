@@ -6,7 +6,7 @@
       "last_price": 1.0,
       "last_size": 1.0,
       "exchange_timestamp": 100,
-      "received_timestamp": 200
+      "received_timestamp": 100
     }
   },
   {
@@ -18,7 +18,7 @@
       "bid_size": 1.0,
       "ask_size": 1.0,
       "exchange_timestamp": 100,
-      "received_timestamp": 200
+      "received_timestamp": 100
     }
   },
   {
@@ -30,7 +30,7 @@
       "bid_size": 1.0,
       "ask_size": 1.0,
       "exchange_timestamp": 150,
-      "received_timestamp": 250
+      "received_timestamp": 150
     }
   },
   {
@@ -42,7 +42,7 @@
       "bid_size": 1.0,
       "ask_size": 1.0,
       "exchange_timestamp": 170,
-      "received_timestamp": 270
+      "received_timestamp": 170
     }
   },
   {
@@ -54,7 +54,7 @@
       "bid_size": 1.0,
       "ask_size": 1.0,
       "exchange_timestamp": 180,
-      "received_timestamp": 270
+      "received_timestamp": 180
     }
   },
   {
@@ -64,7 +64,7 @@
       "last_price": 1.2,
       "last_size": 1.0,
       "exchange_timestamp": 200,
-      "received_timestamp": 300
+      "received_timestamp": 200
     }
   },
   {
@@ -76,7 +76,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 200,
-      "received_timestamp": 300
+      "received_timestamp": 200
     }
   },
   {
@@ -88,7 +88,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 210,
-      "received_timestamp": 310
+      "received_timestamp": 210
     }
   },
   {
@@ -98,17 +98,29 @@
       "last_price": 1.25,
       "last_size": 1.0,
       "exchange_timestamp": 300,
-      "received_timestamp": 400
+      "received_timestamp": 300
+    }
+  },
+  {
+    "NewQuote": {
+      "symbol": "test_ok",
+      "exchange": "test_exchange_ok",
+      "bid": 1.09,
+      "ask": 1.1,
+      "bid_size": 3.0,
+      "ask_size": 4.0,
+      "exchange_timestamp": 410,
+      "received_timestamp": 410
     }
   },
   {
     "NewMarketTrade": {
       "symbol": "test_ok",
       "exchange": "test_exchange_ok",
-      "last_price": 1.4,
+      "last_price": 1.1,
       "last_size": 1.0,
       "exchange_timestamp": 410,
-      "received_timestamp": 510
+      "received_timestamp": 410
     }
   },
   /////// ---------
@@ -121,7 +133,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 500,
-      "received_timestamp": 600
+      "received_timestamp": 500
     }
   },
   {
@@ -131,7 +143,7 @@
       "last_price": 1.6,
       "last_size": 1.0,
       "exchange_timestamp": 504,
-      "received_timestamp": 608
+      "received_timestamp": 504
     }
   },
   {
@@ -143,7 +155,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 700,
-      "received_timestamp": 800
+      "received_timestamp": 700
     }
   },
   {
@@ -153,7 +165,7 @@
       "last_price": 1.6,
       "last_size": 1.0,
       "exchange_timestamp": 706,
-      "received_timestamp": 806
+      "received_timestamp": 706
     }
   },
   // -------------------------
@@ -166,7 +178,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 900,
-      "received_timestamp": 1000
+      "received_timestamp": 900
     }
   },
   {
@@ -176,7 +188,7 @@
       "last_price": 1.6,
       "last_size": 1.0,
       "exchange_timestamp": 1000,
-      "received_timestamp": 1100
+      "received_timestamp": 1000
     }
   },
   {
@@ -186,7 +198,7 @@
       "last_price": 1.65,
       "last_size": 1.0,
       "exchange_timestamp": 1050,
-      "received_timestamp": 1150
+      "received_timestamp": 1050
     }
   },
   // ---------------------------------
@@ -199,7 +211,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 1100,
-      "received_timestamp": 1200
+      "received_timestamp": 1100
     }
   },
   {
@@ -209,7 +221,7 @@
       "last_price": 1.7,
       "last_size": 1.0,
       "exchange_timestamp": 1150,
-      "received_timestamp": 1250
+      "received_timestamp": 1150
     }
   },
   {
@@ -219,7 +231,7 @@
       "last_price": 1.75,
       "last_size": 1.0,
       "exchange_timestamp": 1200,
-      "received_timestamp": 1300
+      "received_timestamp": 1200
     }
   },
   {
@@ -231,7 +243,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 1250,
-      "received_timestamp": 1350
+      "received_timestamp": 1250
     }
   },
   {
@@ -243,7 +255,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 1300,
-      "received_timestamp": 1400
+      "received_timestamp": 1300
     }
   },
   // -----------------------------------
@@ -256,7 +268,7 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 1300,
-      "received_timestamp": 1400
+      "received_timestamp": 1300
     }
   },
   {
@@ -266,7 +278,7 @@
       "last_price": 1.5,
       "last_size": 1.0,
       "exchange_timestamp": 1350,
-      "received_timestamp": 1450
+      "received_timestamp": 1350
     }
   },
   {
@@ -276,7 +288,7 @@
       "last_price": 1.5,
       "last_size": 1.0,
       "exchange_timestamp": 1500,
-      "received_timestamp": 1600
+      "received_timestamp": 1500
     }
   },
   {
@@ -286,7 +298,7 @@
       "last_price": 1.7,
       "last_size": 1.0,
       "exchange_timestamp": 1504,
-      "received_timestamp": 1604
+      "received_timestamp": 1504
     }
   },
   {
@@ -298,7 +310,31 @@
       "bid_size": 3.0,
       "ask_size": 4.0,
       "exchange_timestamp": 1600,
-      "received_timestamp": 1700
+      "received_timestamp": 1600
+    }
+  },
+  {
+    "NewQuote": {
+      "symbol": "test_ok",
+      "exchange": "test_exchange_ok",
+      "bid": 1.45,
+      "ask": 1.8,
+      "bid_size": 3.0,
+      "ask_size": 4.0,
+      "exchange_timestamp": 1900,
+      "received_timestamp": 1900
+    }
+  },
+  {
+    "NewQuote": {
+      "symbol": "test_ok",
+      "exchange": "test_exchange_ok",
+      "bid": 1.35,
+      "ask": 1.8,
+      "bid_size": 3.0,
+      "ask_size": 4.0,
+      "exchange_timestamp": 1910,
+      "received_timestamp": 1910
     }
   }
 ]

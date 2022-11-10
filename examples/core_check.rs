@@ -229,7 +229,7 @@ fn main() {
 
     let sim_broker_name: Exchange = SIM_BROKER_EXCHANGE.to_string();
     let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver, true);
-    let mut sim_trading = SimulatedEnvironment::new(md_provider);
+    let mut sim_trading = SimulatedEnvironment::new(md_provider, None);
     if let Err(err) = sim_trading.add_broker(sim_broker) {
         panic!("{:?}", err)
     };

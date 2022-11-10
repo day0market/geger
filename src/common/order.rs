@@ -3,6 +3,7 @@ use crate::common::types::{
     Timestamp,
 };
 
+#[derive(Debug)]
 pub struct Order {
     pub(crate) create_ts: Timestamp,
     pub(crate) update_ts: Timestamp,

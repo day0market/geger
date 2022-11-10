@@ -5,8 +5,10 @@ pub type ClientOrderId = String;
 pub type ExchangeOrderId = String;
 pub type Symbol = String;
 pub type Timestamp = u64;
+pub type EventId = String;
+pub type ExchangeRequestID = String;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum OrderType {
     MARKET,
     LIMIT,
@@ -14,7 +16,7 @@ pub enum OrderType {
     LIQUIDATION,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TimeInForce {
     GTC,
     IOC,
@@ -22,7 +24,7 @@ pub enum TimeInForce {
     GTX,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ExecutionType {
     NEW,
     CANCELED,

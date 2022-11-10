@@ -1,15 +1,29 @@
 use crate::common::types::{
-    ClientOrderId, Exchange, ExchangeOrderId, OrderType, Side, Symbol, TimeInForce,
+    ClientOrderId, Exchange, ExchangeOrderId, ExchangeRequestID, OrderType, Side, Symbol,
+    TimeInForce, Timestamp,
 };
 use crossbeam_channel::{SendError, Sender};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum ExchangeRequest {
     NewOrder(NewOrderRequest),
     CancelOrder(CancelOrderRequest), // TODO Alex: think about naming
 }
 
+impl ExchangeRequest {
+    pub fn creation_ts(&self) -> Timestamp {
+        match self {
+            ExchangeRequest::NewOrder(r) => r.creation_ts,
+            ExchangeRequest::CancelOrder(r) => r.creation_ts,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct NewOrderRequest {
+    pub request_id: ExchangeRequestID,
     pub client_order_id: ClientOrderId,
     pub exchange: Exchange,
     pub r#type: OrderType,
@@ -19,13 +33,17 @@ pub struct NewOrderRequest {
     pub symbol: Symbol,
     pub quantity: f64,
     pub side: Side,
+    pub creation_ts: Timestamp,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct CancelOrderRequest {
+    pub request_id: ExchangeRequestID,
     pub client_order_id: ClientOrderId,
     pub exchange_order_id: ExchangeOrderId,
     pub exchange: Exchange,
     pub symbol: Symbol,
+    pub creation_ts: Timestamp,
 }
 
 #[derive(Debug)]
