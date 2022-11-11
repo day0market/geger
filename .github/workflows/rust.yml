@@ -32,7 +32,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --offline --color=always --package geger
+          args: --color=always --package geger
 
 
       - name: Run cargo clippy
