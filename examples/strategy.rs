@@ -1,6 +1,6 @@
 use crossbeam_channel::unbounded;
 use geger::common::log::setup_log;
-use geger::core::core::{Actor, Core};
+use geger::core::event_loop::{Actor, EventLoop};
 use geger::core::events::Event;
 use geger::core::gateway_router::{CancelOrderRequest, GatewayRouter, NewOrderRequest};
 use geger::core::market_data::{MarketDataEvent, Quote};
@@ -39,7 +39,7 @@ impl From<QuoteDef> for Quote {
     fn from(def: QuoteDef) -> Quote {
         let QuoteDef {
             symbol,
-            exchange,
+            exchange: _,
             bid,
             ask,
             bid_size,
@@ -248,7 +248,7 @@ fn main() {
     };
     let mut gw_senders = HashMap::new();
     gw_senders.insert(sim_broker_name, gw_sender);
-    let mut core = Core::new(sim_trading, strategy, gw_senders);
+    let mut core = EventLoop::new(sim_trading, strategy, gw_senders);
 
     core.run()
 }

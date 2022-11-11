@@ -75,7 +75,7 @@ impl Event {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NewOrderAccepted {
     pub event_id: EventId,
     pub request_id: Option<ExchangeRequestID>,
@@ -87,7 +87,7 @@ pub struct NewOrderAccepted {
     pub symbol: Symbol,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NewOrderRejected {
     pub event_id: EventId,
     pub request_id: Option<ExchangeRequestID>,
@@ -99,7 +99,7 @@ pub struct NewOrderRejected {
     pub symbol: Symbol,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CancelOrderAccepted {
     pub event_id: EventId,
     pub request_id: Option<ExchangeRequestID>,
@@ -111,7 +111,7 @@ pub struct CancelOrderAccepted {
     pub symbol: Symbol,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CancelOrderRejected {
     pub event_id: EventId,
     pub request_id: Option<ExchangeRequestID>,

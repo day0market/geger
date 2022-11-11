@@ -36,7 +36,7 @@ pub struct NewOrderRequest {
     pub creation_ts: Timestamp,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct CancelOrderRequest {
     pub request_id: ExchangeRequestID,
     pub client_order_id: ClientOrderId,

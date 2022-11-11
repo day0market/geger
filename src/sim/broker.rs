@@ -73,6 +73,7 @@ impl Order {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct SimBrokerExchangeRequest {
     ack_timestamp: Timestamp,
     request_id: InternalID,
@@ -130,14 +131,8 @@ impl SimBroker {
         self.public_event_id.to_string()
     }
 
-    fn check_order_expiration(&mut self, ts: Timestamp) {
-        // TODO
-    }
-
     fn execute_requests_after_ts(&mut self, ts: Timestamp) {
-        self.check_order_expiration(ts);
-
-        if self.pending_requests.len() == 0 {
+        if self.pending_requests.is_empty() {
             return;
         }
 
@@ -145,7 +140,7 @@ impl SimBroker {
 
         let keys: Vec<InternalID> = self.pending_requests.keys().map(|&k| k).collect();
         for req_id in keys {
-            if &self.pending_requests[&req_id].ack_timestamp > &ts {
+            if self.pending_requests[&req_id].ack_timestamp > ts {
                 continue;
             }
 
@@ -167,7 +162,7 @@ impl SimBroker {
 
     fn update_orders_on_md(&mut self, md: &MarketDataEvent) {
         // Update order state, generate UDS and put them into buffer
-        if self.open_orders.len() == 0 {
+        if self.open_orders.is_empty() {
             return;
         }
 
@@ -179,7 +174,7 @@ impl SimBroker {
             .map(|(&k, _)| k)
             .collect();
 
-        if order_ids_to_check.len() == 0 {
+        if order_ids_to_check.is_empty() {
             return;
         }
 
@@ -324,9 +319,7 @@ impl SimBroker {
 
         self.add_generated_event(Event::UDSOrderUpdate(order_update));
         let mut order = Order::new_order_from_exchange_request(request, exchange_ts);
-        if let Err(err) =
-            order.set_confirmed_by_exchange(exchange_order_id_str.clone(), exchange_ts)
-        {
+        if let Err(err) = order.set_confirmed_by_exchange(exchange_order_id_str, exchange_ts) {
             panic!("failed to confirm order: {:?}", err)
         };
 
@@ -479,9 +472,8 @@ impl SimulatedBroker for SimBroker {
     fn on_new_timestamp(&mut self, ts: Timestamp) -> Vec<Event> {
         self.last_ts = ts;
         self.process_requests_on_new_ts(ts);
-        let events = self.get_generated_events();
 
-        events
+        self.get_generated_events()
     }
 
     fn on_new_market_data(&mut self, md: &MarketDataEvent) -> Vec<Event> {
@@ -493,11 +485,11 @@ impl SimulatedBroker for SimBroker {
 
         self.process_requests_on_new_ts(md_ts);
         self.update_orders_on_md(md);
-        let events = self.get_generated_events();
-        events
+
+        self.get_generated_events()
     }
 
     fn estimate_market_data_timestamp(&self, md: &MarketDataEvent) -> Timestamp {
-        return md.exchange_timestamp() + self.wire_latency;
+        md.exchange_timestamp() + self.wire_latency
     }
 }

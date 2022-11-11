@@ -1,8 +1,7 @@
 extern crate core;
 
 use crossbeam_channel::unbounded;
-use geger::common::log::setup_log;
-use geger::core::core::{Actor, Core};
+use geger::core::event_loop::{Actor, EventLoop};
 use geger::core::events::{Event, NewOrderAccepted, OrderUpdate};
 use geger::core::gateway_router::{
     CancelOrderRequest, ExchangeRequest, GatewayRouter, NewOrderRequest,
@@ -12,7 +11,7 @@ use geger::core::types::{ClientOrderId, OrderStatus, OrderType, Side, TimeInForc
 use geger::sim::broker::SimBroker;
 use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use json_comments::StripComments;
-use log::{info, LevelFilter};
+use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
@@ -258,10 +257,6 @@ impl Actor for TestStrategy {
 
 #[test]
 fn check_event_sequence_single_exchange_symbol() {
-    if let Err(err) = setup_log(Some(LevelFilter::Debug), None) {
-        panic!("{:?}", err)
-    }
-
     let expected_collected_events = get_expected_events_from_fixture();
 
     let provider = TestEventSequenceMDProvider::new(SINGLE_SYMBOL_MD);
@@ -298,7 +293,7 @@ fn check_event_sequence_single_exchange_symbol() {
     gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
     gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
 
-    let mut core = Core::new(sim_trading, strategy, gw_senders);
+    let mut core = EventLoop::new(sim_trading, strategy, gw_senders);
 
     core.run();
 
@@ -319,10 +314,6 @@ fn check_event_sequence_single_exchange_symbol() {
 
 #[test]
 fn check_event_sequence_multiple_exchanges_symbols() {
-    if let Err(err) = setup_log(Some(LevelFilter::Debug), None) {
-        panic!("{:?}", err)
-    }
-
     let expected_collected_events = get_expected_events_from_fixture();
     let expected_md_events =
         TestEventSequenceMDProvider::get_md_events_from_fixture(MULTIPLE_EXCHANGE_SYMBOL_MD);
@@ -361,7 +352,7 @@ fn check_event_sequence_multiple_exchanges_symbols() {
     gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
     gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
 
-    let mut core = Core::new(sim_trading, strategy, gw_senders);
+    let mut core = EventLoop::new(sim_trading, strategy, gw_senders);
 
     core.run();
 
