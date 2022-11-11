@@ -1,0 +1,35 @@
+name: rust
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sudo apt install -y pkg-config
+      - uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.64
+          override: true
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path rust/Cargo.toml --all -- --check
+
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --manifest-path rust/Cargo.toml -- -D dead_code

@@ -1,3 +1,4 @@
 /target
 /tests/collected_events.json
 /tests/collected_events_multiple.json
+.idea
