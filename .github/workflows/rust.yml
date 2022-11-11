@@ -26,10 +26,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path rust/Cargo.toml --all -- --check
+          args: --manifest-path Cargo.toml --all -- --check
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path rust/Cargo.toml -- -D dead_code
+          args: --manifest-path Cargo.toml -- -D dead_code
