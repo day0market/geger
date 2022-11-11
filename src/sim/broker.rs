@@ -140,6 +140,9 @@ impl SimBroker {
         if self.pending_requests.len() == 0 {
             return;
         }
+
+        debug!("pending requests: {:?}", &self.pending_requests);
+
         let keys: Vec<InternalID> = self.pending_requests.keys().map(|&k| k).collect();
         for req_id in keys {
             if &self.pending_requests[&req_id].ack_timestamp > &ts {
@@ -445,7 +448,9 @@ impl SimBroker {
     }
 
     fn process_requests_on_new_ts(&mut self, ts: Timestamp) {
+        debug!("try to receive incoming requests");
         while let Ok(exchange_request) = self.incoming_request_receiver.try_recv() {
+            debug!("received exchange request: {:?}", &exchange_request);
             self.last_request_id += 1;
             let wrapped_request = SimBrokerExchangeRequest {
                 ack_timestamp: exchange_request.creation_ts() + self.wire_latency,

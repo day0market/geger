@@ -1,4 +1,5 @@
 use crossbeam_channel::unbounded;
+use geger::common::log::setup_log;
 use geger::core::core::{Actor, Core};
 use geger::core::events::Event;
 use geger::core::gateway_router::{CancelOrderRequest, GatewayRouter, NewOrderRequest};
@@ -6,7 +7,7 @@ use geger::core::market_data::{MarketDataEvent, Quote};
 use geger::core::types::{Exchange, OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp};
 use geger::sim::broker::SimBroker;
 use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
-use log::error;
+use log::{debug, error, LevelFilter};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -127,7 +128,7 @@ impl SimulatedTradingMarketDataProvider for FileMarketDataProvider {
             Some(val) => val,
             None => {
                 if let Err(err) = self.read_events_to_buffer() {
-                    println!("failed to read events: {}", err);
+                    debug!("failed to read events: {}", err);
                     return None;
                 }
                 match self.events_buffer.get(self.idx) {
@@ -138,13 +139,13 @@ impl SimulatedTradingMarketDataProvider for FileMarketDataProvider {
         };
 
         let event = MarketDataEvent::NewQuote((*quote).clone().into());
-        if event.timestamp() < self.last_ts {
+        if event.exchange_timestamp() < self.last_ts {
             panic!("incorrect sequence of events")
         };
 
         self.idx += 1;
 
-        self.last_ts = event.timestamp();
+        self.last_ts = event.exchange_timestamp();
         Some(event)
     }
 }
@@ -179,6 +180,7 @@ impl SampleStrategy {
                 side: Side::BUY,
                 creation_ts: quote.received_timestamp,
             };
+            debug!("new order request: {:?}", &request);
             if let Err(err) = gw_router.send_order(request) {
                 panic!("{:?}", err)
             };
@@ -209,8 +211,9 @@ impl Actor for SampleStrategy {
                         exchange_order_id: msg.exchange_order_id.as_ref().unwrap().clone(),
                         exchange: msg.exchange.clone(),
                         symbol: msg.symbol.clone(),
-                        creation_ts: msg.timestamp,
+                        creation_ts: msg.exchange_timestamp,
                     };
+                    debug!("new cancel request: {:?}", &request);
                     gw_router.cancel_order(request).unwrap();
                 }
                 OrderStatus::CANCELED => {
@@ -224,13 +227,21 @@ impl Actor for SampleStrategy {
 }
 
 fn main() {
-    let md_provider =
-        FileMarketDataProvider::new("/Users/alex/Desktop/my_remote/all_book_tickers_msg");
+    if let Err(err) = setup_log(Some(LevelFilter::Debug), None) {
+        panic!("{:?}", err)
+    }
+    let md_provider = FileMarketDataProvider::new("data/examples/strategy");
     let strategy = SampleStrategy::new();
     let (gw_sender, gw_receiver) = unbounded();
 
     let sim_broker_name: Exchange = SIM_BROKER_EXCHANGE.to_string();
-    let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver, true, None, None);
+    let sim_broker = SimBroker::new(
+        sim_broker_name.clone(),
+        gw_receiver,
+        true,
+        Some(100),
+        Some(2),
+    );
     let mut sim_trading = SimulatedEnvironment::new(md_provider, None);
     if let Err(err) = sim_trading.add_broker(sim_broker) {
         panic!("{:?}", err)
