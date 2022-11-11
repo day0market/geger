@@ -1,4 +1,4 @@
-use crate::common::types::{
+use super::types::{
     ClientOrderId, Exchange, ExchangeOrderId, ExchangeRequestID, OrderType, Side, Symbol,
     TimeInForce, Timestamp,
 };
@@ -9,7 +9,7 @@ use std::collections::HashMap;
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub enum ExchangeRequest {
     NewOrder(NewOrderRequest),
-    CancelOrder(CancelOrderRequest), // TODO Alex: think about naming
+    CancelOrder(CancelOrderRequest),
 }
 
 impl ExchangeRequest {
@@ -36,7 +36,7 @@ pub struct NewOrderRequest {
     pub creation_ts: Timestamp,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct CancelOrderRequest {
     pub request_id: ExchangeRequestID,
     pub client_order_id: ClientOrderId,

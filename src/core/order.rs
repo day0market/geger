@@ -1,4 +1,4 @@
-use crate::common::types::{
+use super::types::{
     ClientOrderId, Exchange, ExchangeOrderId, OrderStatus, OrderType, Side, Symbol, TimeInForce,
     Timestamp,
 };

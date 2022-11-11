@@ -1,0 +1,2 @@
+If latency set to 0 or it's small then we can't process requests in adequate order.
+We need to receive and process broker requests first and on the next loop process md in sim broker

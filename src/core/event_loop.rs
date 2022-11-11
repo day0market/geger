@@ -1,9 +1,9 @@
-use crate::common::events::Event;
-use crate::core::gateway_router::{ExchangeRequest, GatewayRouter};
+use super::events::Event;
+use super::gateway_router::{ExchangeRequest, GatewayRouter};
 use crossbeam_channel::Sender;
 use std::collections::HashMap;
 
-use crate::common::types::Exchange;
+use crate::core::types::Exchange;
 
 pub trait EventProvider {
     fn next_event(&mut self) -> Option<Event>;
@@ -13,13 +13,13 @@ pub trait Actor {
     fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter);
 }
 
-pub struct Core<T: EventProvider, S: Actor> {
+pub struct EventLoop<T: EventProvider, S: Actor> {
     event_provider: T,
     strategy: S,
     gateway_router: GatewayRouter,
 }
 
-impl<T: EventProvider, S: Actor> Core<T, S> {
+impl<T: EventProvider, S: Actor> EventLoop<T, S> {
     pub fn new(
         event_provider: T,
         strategy: S,
@@ -45,6 +45,6 @@ impl<T: EventProvider, S: Actor> Core<T, S> {
     }
 
     pub fn get_strategy(&self) -> &S {
-        return &self.strategy;
+        &self.strategy
     }
 }

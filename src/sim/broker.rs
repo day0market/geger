@@ -1,14 +1,14 @@
-use crate::common::events::{
+use super::environment::SimulatedBroker;
+use crate::core::events::{
     CancelOrderAccepted, CancelOrderRejected, Event, NewOrderAccepted, NewOrderRejected,
     OrderUpdate,
 };
-use crate::common::market_data::MarketDataEvent;
-use crate::common::order::Order;
-use crate::common::types::{
+use crate::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
+use crate::core::market_data::MarketDataEvent;
+use crate::core::order::Order;
+use crate::core::types::{
     EventId, Exchange, ExecutionType, OrderStatus, OrderType, Side, Timestamp,
 };
-use crate::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
-use crate::sim_environment::SimulatedBroker;
 use crossbeam_channel::Receiver;
 use log::debug;
 use std::collections::HashMap;
@@ -16,6 +16,64 @@ use std::collections::HashMap;
 type InternalID = u64;
 
 #[derive(Debug)]
+enum Error {
+    UnreachableStatus,
+}
+
+impl Order {
+    fn new_order_from_exchange_request(request: &NewOrderRequest, ts: u64) -> Self {
+        let (price, trigger_price) = match request.r#type {
+            OrderType::LIMIT => (request.price, None),
+            OrderType::MARKET => (None, None),
+            OrderType::STOP => (None, request.trigger_price),
+            _ => unimplemented!(),
+        };
+
+        Self {
+            create_ts: ts,
+            update_ts: ts,
+            exchange_order_id: None,
+            client_order_id: request.client_order_id.clone(),
+            exchange: request.exchange.clone(),
+            r#type: request.r#type.clone(),
+            time_in_force: request.time_in_force.clone(),
+            price,
+            trigger_price,
+            symbol: request.symbol.clone(),
+            side: request.side.clone(),
+            quantity: request.quantity,
+            filled_quantity: None,
+            avg_fill_price: None,
+            status: OrderStatus::NEW,
+        }
+    }
+
+    fn set_confirmed_by_exchange(
+        &mut self,
+        exchange_order_id: String,
+        confirmation_ts: u64,
+    ) -> Result<(), Error> {
+        if self.status != OrderStatus::NEW {
+            Err(Error::UnreachableStatus)
+        } else {
+            self.update_ts = self.update_ts.max(confirmation_ts);
+            self.exchange_order_id = Some(exchange_order_id);
+            Ok(())
+        }
+    }
+
+    fn cancel(&mut self, cancel_ts: u64) -> Result<(), Error> {
+        if self.status == OrderStatus::FILLED || self.exchange_order_id.is_none() {
+            Err(Error::UnreachableStatus)
+        } else {
+            self.update_ts = self.update_ts.max(cancel_ts);
+            Ok(())
+        }
+    }
+}
+
+#[derive(Debug)]
+#[allow(dead_code)]
 struct SimBrokerExchangeRequest {
     ack_timestamp: Timestamp,
     request_id: InternalID,
@@ -73,19 +131,16 @@ impl SimBroker {
         self.public_event_id.to_string()
     }
 
-    fn check_order_expiration(&mut self, ts: Timestamp) {
-        // TODO
-    }
-
     fn execute_requests_after_ts(&mut self, ts: Timestamp) {
-        self.check_order_expiration(ts);
-
-        if self.pending_requests.len() == 0 {
+        if self.pending_requests.is_empty() {
             return;
         }
+
+        debug!("pending requests: {:?}", &self.pending_requests);
+
         let keys: Vec<InternalID> = self.pending_requests.keys().map(|&k| k).collect();
         for req_id in keys {
-            if &self.pending_requests[&req_id].ack_timestamp > &ts {
+            if self.pending_requests[&req_id].ack_timestamp > ts {
                 continue;
             }
 
@@ -107,7 +162,7 @@ impl SimBroker {
 
     fn update_orders_on_md(&mut self, md: &MarketDataEvent) {
         // Update order state, generate UDS and put them into buffer
-        if self.open_orders.len() == 0 {
+        if self.open_orders.is_empty() {
             return;
         }
 
@@ -119,7 +174,7 @@ impl SimBroker {
             .map(|(&k, _)| k)
             .collect();
 
-        if order_ids_to_check.len() == 0 {
+        if order_ids_to_check.is_empty() {
             return;
         }
 
@@ -264,9 +319,7 @@ impl SimBroker {
 
         self.add_generated_event(Event::UDSOrderUpdate(order_update));
         let mut order = Order::new_order_from_exchange_request(request, exchange_ts);
-        if let Err(err) =
-            order.set_confirmed_by_exchange(exchange_order_id_str.clone(), exchange_ts)
-        {
+        if let Err(err) = order.set_confirmed_by_exchange(exchange_order_id_str, exchange_ts) {
             panic!("failed to confirm order: {:?}", err)
         };
 
@@ -388,7 +441,9 @@ impl SimBroker {
     }
 
     fn process_requests_on_new_ts(&mut self, ts: Timestamp) {
+        debug!("try to receive incoming requests");
         while let Ok(exchange_request) = self.incoming_request_receiver.try_recv() {
+            debug!("received exchange request: {:?}", &exchange_request);
             self.last_request_id += 1;
             let wrapped_request = SimBrokerExchangeRequest {
                 ack_timestamp: exchange_request.creation_ts() + self.wire_latency,
@@ -417,9 +472,8 @@ impl SimulatedBroker for SimBroker {
     fn on_new_timestamp(&mut self, ts: Timestamp) -> Vec<Event> {
         self.last_ts = ts;
         self.process_requests_on_new_ts(ts);
-        let events = self.get_generated_events();
 
-        events
+        self.get_generated_events()
     }
 
     fn on_new_market_data(&mut self, md: &MarketDataEvent) -> Vec<Event> {
@@ -431,11 +485,11 @@ impl SimulatedBroker for SimBroker {
 
         self.process_requests_on_new_ts(md_ts);
         self.update_orders_on_md(md);
-        let events = self.get_generated_events();
-        events
+
+        self.get_generated_events()
     }
 
     fn estimate_market_data_timestamp(&self, md: &MarketDataEvent) -> Timestamp {
-        return md.exchange_timestamp() + self.wire_latency;
+        md.exchange_timestamp() + self.wire_latency
     }
 }

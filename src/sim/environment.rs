@@ -1,8 +1,8 @@
-use crate::common::events::Event;
-use crate::common::market_data::MarketDataEvent;
+use crate::core::events::Event;
+use crate::core::market_data::MarketDataEvent;
 
-use crate::common::types::{Exchange, Timestamp};
-use crate::core::core::EventProvider;
+use crate::core::event_loop::EventProvider;
+use crate::core::types::{Exchange, Timestamp};
 use log::warn;
 use std::collections::HashMap;
 
@@ -79,7 +79,7 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> SimulatedEnviron
             return;
         }
 
-        if self.md_event_buffer.len() == 0 {
+        if self.md_event_buffer.is_empty() {
             if self.no_more_md {
                 return;
             }
@@ -96,7 +96,7 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> SimulatedEnviron
         // read all events with exchange ts <= earliest event + max latency
         // we expect that md is sorted by exchange ts, so first event in buffer should always have min exchange ts
         let max_exchange_ts_to_read =
-            &self.md_event_buffer[0].exchange_timestamp() + self.max_md_wire_latency;
+            self.md_event_buffer[0].exchange_timestamp() + self.max_md_wire_latency;
 
         loop {
             let event = self.md_provider.next_event();
@@ -134,8 +134,7 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> SimulatedEnviron
                 broker.on_new_timestamp(pending_md_ts)
             };
             self.broker_events_buffer.extend(new_events);
-            self.broker_events_buffer
-                .sort_by(|a, b| a.timestamp().cmp(&b.timestamp()));
+            self.broker_events_buffer.sort_by_key(|a| a.timestamp())
         }
     }
 }
@@ -147,7 +146,7 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> EventProvider
         loop {
             self.update_pending_md();
 
-            if self.broker_events_buffer.len() == 0 {
+            if self.broker_events_buffer.is_empty() {
                 if self.no_more_md {
                     return None;
                 }
@@ -157,7 +156,7 @@ impl<T: SimulatedTradingMarketDataProvider, B: SimulatedBroker> EventProvider
             }
 
             if self.no_more_md {
-                if self.broker_events_buffer.len() > 0 {
+                if !self.broker_events_buffer.is_empty() {
                     let event = self.broker_events_buffer.remove(0); // TODO alex optimize
                     return Some(event);
                 }

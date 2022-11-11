@@ -8,7 +8,7 @@ pub type Timestamp = u64;
 pub type EventId = String;
 pub type ExchangeRequestID = String;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum OrderType {
     MARKET,
     LIMIT,
@@ -16,7 +16,7 @@ pub enum OrderType {
     LIQUIDATION,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TimeInForce {
     GTC,
     IOC,
@@ -24,7 +24,7 @@ pub enum TimeInForce {
     GTX,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ExecutionType {
     NEW,
     CANCELED,
@@ -40,6 +40,7 @@ pub enum Side {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(non_camel_case_types)]
 pub enum OrderStatus {
     NEW,
     PARTIALLY_FILLED,

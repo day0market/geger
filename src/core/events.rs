@@ -1,5 +1,5 @@
-use crate::common::market_data::{MarketDataEvent, Quote, Trade};
-use crate::common::types::{
+use super::market_data::{MarketDataEvent, Quote, Trade};
+use super::types::{
     ClientOrderId, EventId, Exchange, ExchangeOrderId, ExchangeRequestID, ExecutionType,
     OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp,
 };
@@ -14,6 +14,15 @@ pub enum Event {
     ResponseCancelOrderAccepted(CancelOrderAccepted),
     ResponseCancelOrderRejected(CancelOrderRejected),
     UDSOrderUpdate(OrderUpdate),
+}
+
+impl From<MarketDataEvent> for Event {
+    fn from(md_event: MarketDataEvent) -> Self {
+        match md_event {
+            MarketDataEvent::NewMarketTrade(trade) => Self::NewMarketTrade(trade),
+            MarketDataEvent::NewQuote(quote) => Self::NewQuote(quote),
+        }
+    }
 }
 
 impl Event {
@@ -66,16 +75,7 @@ impl Event {
     }
 }
 
-impl From<MarketDataEvent> for Event {
-    fn from(md_event: MarketDataEvent) -> Self {
-        match md_event {
-            MarketDataEvent::NewMarketTrade(trade) => Self::NewMarketTrade(trade),
-            MarketDataEvent::NewQuote(quote) => Self::NewQuote(quote),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NewOrderAccepted {
     pub event_id: EventId,
     pub request_id: Option<ExchangeRequestID>,
@@ -87,7 +87,7 @@ pub struct NewOrderAccepted {
     pub symbol: Symbol,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct NewOrderRejected {
     pub event_id: EventId,
     pub request_id: Option<ExchangeRequestID>,
@@ -99,7 +99,7 @@ pub struct NewOrderRejected {
     pub symbol: Symbol,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CancelOrderAccepted {
     pub event_id: EventId,
     pub request_id: Option<ExchangeRequestID>,
@@ -111,7 +111,7 @@ pub struct CancelOrderAccepted {
     pub symbol: Symbol,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CancelOrderRejected {
     pub event_id: EventId,
     pub request_id: Option<ExchangeRequestID>,
