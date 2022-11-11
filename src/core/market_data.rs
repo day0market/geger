@@ -1,4 +1,4 @@
-use crate::common::types::{EventId, Exchange, Symbol, Timestamp};
+use super::types::{EventId, Exchange, Symbol, Timestamp};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

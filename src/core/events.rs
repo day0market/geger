@@ -1,5 +1,5 @@
-use crate::common::market_data::{MarketDataEvent, Quote, Trade};
-use crate::common::types::{
+use super::market_data::{MarketDataEvent, Quote, Trade};
+use super::types::{
     ClientOrderId, EventId, Exchange, ExchangeOrderId, ExchangeRequestID, ExecutionType,
     OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp,
 };
@@ -14,6 +14,15 @@ pub enum Event {
     ResponseCancelOrderAccepted(CancelOrderAccepted),
     ResponseCancelOrderRejected(CancelOrderRejected),
     UDSOrderUpdate(OrderUpdate),
+}
+
+impl From<MarketDataEvent> for Event {
+    fn from(md_event: MarketDataEvent) -> Self {
+        match md_event {
+            MarketDataEvent::NewMarketTrade(trade) => Self::NewMarketTrade(trade),
+            MarketDataEvent::NewQuote(quote) => Self::NewQuote(quote),
+        }
+    }
 }
 
 impl Event {
@@ -62,15 +71,6 @@ impl Event {
             Self::ResponseCancelOrderAccepted(r) => r.symbol.clone(),
             Self::ResponseCancelOrderRejected(r) => r.symbol.clone(),
             Self::UDSOrderUpdate(o) => o.symbol.clone(),
-        }
-    }
-}
-
-impl From<MarketDataEvent> for Event {
-    fn from(md_event: MarketDataEvent) -> Self {
-        match md_event {
-            MarketDataEvent::NewMarketTrade(trade) => Self::NewMarketTrade(trade),
-            MarketDataEvent::NewQuote(quote) => Self::NewQuote(quote),
         }
     }
 }

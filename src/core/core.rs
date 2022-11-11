@@ -1,9 +1,9 @@
-use crate::common::events::Event;
-use crate::core::gateway_router::{ExchangeRequest, GatewayRouter};
+use super::events::Event;
+use super::gateway_router::{ExchangeRequest, GatewayRouter};
 use crossbeam_channel::Sender;
 use std::collections::HashMap;
 
-use crate::common::types::Exchange;
+use crate::core::types::Exchange;
 
 pub trait EventProvider {
     fn next_event(&mut self) -> Option<Event>;

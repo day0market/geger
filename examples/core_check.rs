@@ -1,14 +1,11 @@
-extern crate core;
 use crossbeam_channel::unbounded;
-use geger::common::events::Event;
-use geger::common::market_data::{MarketDataEvent, Quote};
-use geger::common::types::{
-    Exchange, OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp,
-};
 use geger::core::core::{Actor, Core};
+use geger::core::events::Event;
 use geger::core::gateway_router::{CancelOrderRequest, GatewayRouter, NewOrderRequest};
-use geger::sim_broker::broker::SimBroker;
-use geger::sim_environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
+use geger::core::market_data::{MarketDataEvent, Quote};
+use geger::core::types::{Exchange, OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp};
+use geger::sim::broker::SimBroker;
+use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use log::error;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -50,6 +47,7 @@ impl From<QuoteDef> for Quote {
             received_timestamp,
         } = def;
         Quote {
+            event_id: None,
             symbol,
             exchange: SIM_BROKER_EXCHANGE.to_string(),
             bid,
@@ -169,6 +167,7 @@ impl SampleStrategy {
     fn on_quote(&mut self, quote: &Quote, gw_router: &mut GatewayRouter) {
         if !self.has_open_order {
             let request = NewOrderRequest {
+                request_id: "".to_string(),
                 client_order_id: "1".to_string(),
                 exchange: SIM_BROKER_EXCHANGE.to_string(),
                 r#type: OrderType::LIMIT,
@@ -178,6 +177,7 @@ impl SampleStrategy {
                 symbol: quote.symbol.clone(),
                 quantity: 1.0,
                 side: Side::BUY,
+                creation_ts: quote.received_timestamp,
             };
             if let Err(err) = gw_router.send_order(request) {
                 panic!("{:?}", err)
@@ -204,10 +204,12 @@ impl Actor for SampleStrategy {
             Event::UDSOrderUpdate(msg) => match msg.order_status {
                 OrderStatus::NEW => {
                     let request = CancelOrderRequest {
+                        request_id: "".to_string(),
                         client_order_id: msg.client_order_id.as_ref().unwrap().clone(),
                         exchange_order_id: msg.exchange_order_id.as_ref().unwrap().clone(),
                         exchange: msg.exchange.clone(),
                         symbol: msg.symbol.clone(),
+                        creation_ts: msg.timestamp,
                     };
                     gw_router.cancel_order(request).unwrap();
                 }
@@ -228,7 +230,7 @@ fn main() {
     let (gw_sender, gw_receiver) = unbounded();
 
     let sim_broker_name: Exchange = SIM_BROKER_EXCHANGE.to_string();
-    let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver, true);
+    let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver, true, None, None);
     let mut sim_trading = SimulatedEnvironment::new(md_provider, None);
     if let Err(err) = sim_trading.add_broker(sim_broker) {
         panic!("{:?}", err)

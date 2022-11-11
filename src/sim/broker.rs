@@ -1,19 +1,76 @@
-use crate::common::events::{
+use super::environment::SimulatedBroker;
+use crate::core::events::{
     CancelOrderAccepted, CancelOrderRejected, Event, NewOrderAccepted, NewOrderRejected,
     OrderUpdate,
 };
-use crate::common::market_data::MarketDataEvent;
-use crate::common::order::Order;
-use crate::common::types::{
+use crate::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
+use crate::core::market_data::MarketDataEvent;
+use crate::core::order::Order;
+use crate::core::types::{
     EventId, Exchange, ExecutionType, OrderStatus, OrderType, Side, Timestamp,
 };
-use crate::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
-use crate::sim_environment::SimulatedBroker;
 use crossbeam_channel::Receiver;
 use log::debug;
 use std::collections::HashMap;
 
 type InternalID = u64;
+
+#[derive(Debug)]
+enum Error {
+    UnreachableStatus,
+}
+
+impl Order {
+    fn new_order_from_exchange_request(request: &NewOrderRequest, ts: u64) -> Self {
+        let (price, trigger_price) = match request.r#type {
+            OrderType::LIMIT => (request.price, None),
+            OrderType::MARKET => (None, None),
+            OrderType::STOP => (None, request.trigger_price),
+            _ => unimplemented!(),
+        };
+
+        Self {
+            create_ts: ts,
+            update_ts: ts,
+            exchange_order_id: None,
+            client_order_id: request.client_order_id.clone(),
+            exchange: request.exchange.clone(),
+            r#type: request.r#type.clone(),
+            time_in_force: request.time_in_force.clone(),
+            price,
+            trigger_price,
+            symbol: request.symbol.clone(),
+            side: request.side.clone(),
+            quantity: request.quantity,
+            filled_quantity: None,
+            avg_fill_price: None,
+            status: OrderStatus::NEW,
+        }
+    }
+
+    fn set_confirmed_by_exchange(
+        &mut self,
+        exchange_order_id: String,
+        confirmation_ts: u64,
+    ) -> Result<(), Error> {
+        if self.status != OrderStatus::NEW {
+            Err(Error::UnreachableStatus)
+        } else {
+            self.update_ts = self.update_ts.max(confirmation_ts);
+            self.exchange_order_id = Some(exchange_order_id);
+            Ok(())
+        }
+    }
+
+    fn cancel(&mut self, cancel_ts: u64) -> Result<(), Error> {
+        if self.status == OrderStatus::FILLED || self.exchange_order_id.is_none() {
+            Err(Error::UnreachableStatus)
+        } else {
+            self.update_ts = self.update_ts.max(cancel_ts);
+            Ok(())
+        }
+    }
+}
 
 #[derive(Debug)]
 struct SimBrokerExchangeRequest {

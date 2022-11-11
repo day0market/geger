@@ -1,16 +1,16 @@
 extern crate core;
 
 use crossbeam_channel::unbounded;
-use geger::common::events::{Event, NewOrderAccepted, OrderUpdate};
 use geger::common::log::setup_log;
-use geger::common::market_data::{MarketDataEvent, Quote};
-use geger::common::types::{ClientOrderId, OrderStatus, OrderType, Side, TimeInForce, Timestamp};
 use geger::core::core::{Actor, Core};
+use geger::core::events::{Event, NewOrderAccepted, OrderUpdate};
 use geger::core::gateway_router::{
     CancelOrderRequest, ExchangeRequest, GatewayRouter, NewOrderRequest,
 };
-use geger::sim_broker::broker::SimBroker;
-use geger::sim_environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
+use geger::core::market_data::{MarketDataEvent, Quote};
+use geger::core::types::{ClientOrderId, OrderStatus, OrderType, Side, TimeInForce, Timestamp};
+use geger::sim::broker::SimBroker;
+use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use json_comments::StripComments;
 use log::{info, LevelFilter};
 use serde::{Deserialize, Serialize};
