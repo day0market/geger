@@ -16,7 +16,7 @@ It's event driven framework. You can implement you algo as Actor to handle all p
 
 General Event Path:
 
-_Market Data Provider -> Environment -> Core -> Actors_
+_Market Data Provider -> Environment -> Event Loop -> Actors_
 
 Sim Environment (which is the only implemented one) Event Path:
 
