@@ -443,7 +443,10 @@ impl SimBroker {
     fn process_requests_on_new_ts(&mut self, ts: Timestamp) {
         debug!("try to receive incoming requests");
         while let Ok(exchange_request) = self.incoming_request_receiver.try_recv() {
-            debug!("received exchange request: {:?}", &exchange_request);
+            debug!(
+                "ts: {} received exchange request: {:?}",
+                ts, &exchange_request
+            );
             self.last_request_id += 1;
             let wrapped_request = SimBrokerExchangeRequest {
                 ack_timestamp: exchange_request.creation_ts() + self.wire_latency,
@@ -472,7 +475,6 @@ impl SimulatedBroker for SimBroker {
     fn on_new_timestamp(&mut self, ts: Timestamp) -> Vec<Event> {
         self.last_ts = ts;
         self.process_requests_on_new_ts(ts);
-
         self.get_generated_events()
     }
 
@@ -485,7 +487,6 @@ impl SimulatedBroker for SimBroker {
 
         self.process_requests_on_new_ts(md_ts);
         self.update_orders_on_md(md);
-
         self.get_generated_events()
     }
 

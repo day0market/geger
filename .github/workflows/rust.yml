@@ -28,12 +28,17 @@ jobs:
           command: fmt
           args: --manifest-path Cargo.toml --all -- --check
 
-      - name: Run geger tests
+      - name: Run package tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --color=always --package geger
 
+      - name: Run examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: run
+          args: --example strategy
 
       - name: Run cargo clippy
         uses: actions-rs/cargo@v1
