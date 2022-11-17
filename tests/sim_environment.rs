@@ -25,6 +25,18 @@ const MULTIPLE_EXCHANGE_SYMBOL_MD: &str =
     "data/test/sim_environment/md_multiple_symbols_exchanges.json";
 const EXPECTED_COLLECTED_EVENTS_PATH: &str = "data/test/sim_environment/expected_events.json";
 
+enum MyActors {
+    Strategy(TestStrategy),
+}
+
+impl Actor for MyActors {
+    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+        match self {
+            MyActors::Strategy(s) => s.on_event(event, gw_router),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 enum TestStrategyCollectedEvent {
     Event(Event),
@@ -293,11 +305,15 @@ fn check_event_sequence_single_exchange_symbol() {
     gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
     gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
 
-    let mut core = EventLoop::new(sim_trading, strategy, gw_senders);
+    let actors = vec![MyActors::Strategy(strategy)];
+
+    let mut core = EventLoop::new(sim_trading, actors, gw_senders);
 
     core.run();
 
-    let strategy = core.get_strategy();
+    let strategy = match &core.get_actors()[0] {
+        MyActors::Strategy(s) => s,
+    };
     //let data = serde_json::to_vec(&strategy.collected_events).unwrap();
     //fs::write("tests/collected_events.json", data).unwrap();
     assert_eq!(
@@ -352,11 +368,15 @@ fn check_event_sequence_multiple_exchanges_symbols() {
     gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
     gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
 
-    let mut core = EventLoop::new(sim_trading, strategy, gw_senders);
+    let actors = vec![MyActors::Strategy(strategy)];
+
+    let mut core = EventLoop::new(sim_trading, actors, gw_senders);
 
     core.run();
 
-    let strategy = core.get_strategy();
+    let strategy = match &core.get_actors()[0] {
+        MyActors::Strategy(s) => s,
+    };
     //let data = serde_json::to_vec(&strategy.collected_events).unwrap();
     //fs::write("tests/collected_events_multiple.json", data).unwrap();
 

@@ -34,6 +34,21 @@ pub trait Actor {
 
 ```
 
+You can add multiple actors into single EventLoop. If all actors are the same just you can add them directly as array. If there are different types of Actors you can use enum instead. Here is example taken from [here](examples/strategy.rs):
+```rust
+enum MyActors {
+    Strategy(SampleStrategy),
+}
+
+impl Actor for MyActors {
+    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+        match self {
+            MyActors::Strategy(s) => s.on_event(event, gw_router),
+        }
+    }
+}
+```
+
 **Event**
 ```rust
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -88,7 +103,7 @@ pub struct CancelOrderRequest {
 ## **Quick start**
 
 To start testing you need to implement 2 things:
-* you strategy (Actor)
+* you strategy (Actor) or enum implementing Actor interface in case you have multiple actors/strategies
 * market data provider, which for sure can be reused
 
 ```rust
