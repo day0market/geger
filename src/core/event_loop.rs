@@ -15,20 +15,20 @@ pub trait Actor {
 
 pub struct EventLoop<T: EventProvider, S: Actor> {
     event_provider: T,
-    strategy: S,
+    actors: Vec<S>,
     gateway_router: GatewayRouter,
 }
 
 impl<T: EventProvider, S: Actor> EventLoop<T, S> {
     pub fn new(
         event_provider: T,
-        strategy: S,
+        actors: Vec<S>,
         gw_router_senders: HashMap<Exchange, Sender<ExchangeRequest>>,
     ) -> Self {
         let gateway_router = GatewayRouter::new(gw_router_senders);
         Self {
             event_provider,
-            strategy,
+            actors,
             gateway_router,
         }
     }
@@ -40,11 +40,13 @@ impl<T: EventProvider, S: Actor> EventLoop<T, S> {
                 break 'event_loop;
             }
             let event = event.unwrap();
-            self.strategy.on_event(&event, &mut self.gateway_router);
+            for actor in &mut self.actors {
+                actor.on_event(&event, &mut self.gateway_router);
+            }
         }
     }
 
-    pub fn get_strategy(&self) -> &S {
-        &self.strategy
+    pub fn get_actors(&self) -> &Vec<S> {
+        &self.actors
     }
 }

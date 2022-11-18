@@ -226,6 +226,18 @@ impl Actor for SampleStrategy {
     }
 }
 
+enum MyActors {
+    Strategy(SampleStrategy),
+}
+
+impl Actor for MyActors {
+    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+        match self {
+            MyActors::Strategy(s) => s.on_event(event, gw_router),
+        }
+    }
+}
+
 fn main() {
     if let Err(err) = setup_log(Some(LevelFilter::Debug), None) {
         panic!("{:?}", err)
@@ -242,7 +254,8 @@ fn main() {
     };
     let mut gw_senders = HashMap::new();
     gw_senders.insert(sim_broker_name, gw_sender);
-    let mut core = EventLoop::new(sim_trading, strategy, gw_senders);
+    let actors = vec![MyActors::Strategy(strategy)];
+    let mut core = EventLoop::new(sim_trading, actors, gw_senders);
 
     core.run()
 }
