@@ -1,4 +1,6 @@
-_Geger_ is a framework for building trading systems. It's pretty much bare bone by design. Infrastructure may vary from algo to algo that's why I tried to keep it simple and flexible.
+![example workflow](https://github.com/day0market/geger/actions/workflows/build.yml/badge.svg)
+
+**Geger** is a framework for building trading systems. It's pretty much bare bone by design. Infrastructure may vary from algo to algo that's why I tried to keep it simple and flexible.
 
 **Current status:**
 * only backtesting mode
