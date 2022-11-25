@@ -1,7 +1,9 @@
 use super::events::Event;
 use super::gateway_router::{ExchangeRequest, GatewayRouter};
 use crossbeam_channel::Sender;
+use log::error;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use crate::core::types::Exchange;
 
@@ -15,14 +17,14 @@ pub trait Actor {
 
 pub struct EventLoop<T: EventProvider, S: Actor> {
     event_provider: T,
-    actors: Vec<S>,
+    actors: Vec<Arc<Mutex<S>>>,
     gateway_router: GatewayRouter,
 }
 
 impl<T: EventProvider, S: Actor> EventLoop<T, S> {
     pub fn new(
         event_provider: T,
-        actors: Vec<S>,
+        actors: Vec<Arc<Mutex<S>>>,
         gw_router_senders: HashMap<Exchange, Sender<ExchangeRequest>>,
     ) -> Self {
         let gateway_router = GatewayRouter::new(gw_router_senders);
@@ -41,12 +43,19 @@ impl<T: EventProvider, S: Actor> EventLoop<T, S> {
             }
             let event = event.unwrap();
             for actor in &mut self.actors {
-                actor.on_event(&event, &mut self.gateway_router);
+                match &mut actor.lock() {
+                    Ok(actor) => {
+                        actor.on_event(&event, &mut self.gateway_router);
+                    }
+                    Err(err) => {
+                        error!("failed to process event because of mutex lock error: {:?}. event: {:?}", err, &event)
+                    }
+                }
             }
         }
     }
 
-    pub fn get_actors(&self) -> &Vec<S> {
+    pub fn get_actors(&self) -> &Vec<Arc<Mutex<S>>> {
         &self.actors
     }
 }

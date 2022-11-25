@@ -11,6 +11,7 @@ use log::{debug, error, LevelFilter};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::sync::{Arc, Mutex};
 
 const SIM_BROKER_EXCHANGE: &str = "test_exchange";
 
@@ -254,7 +255,8 @@ fn main() {
     };
     let mut gw_senders = HashMap::new();
     gw_senders.insert(sim_broker_name, gw_sender);
-    let actors = vec![MyActors::Strategy(strategy)];
+
+    let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
     let mut core = EventLoop::new(sim_trading, actors, gw_senders);
 
     core.run()

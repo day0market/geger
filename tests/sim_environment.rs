@@ -15,6 +15,7 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::{env, fs};
 
 const TRADE_SYMBOL: &str = "test_ok";
@@ -305,14 +306,16 @@ fn check_event_sequence_single_exchange_symbol() {
     gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
     gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
 
-    let actors = vec![MyActors::Strategy(strategy)];
+    let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
 
     let mut core = EventLoop::new(sim_trading, actors, gw_senders);
 
     core.run();
 
-    let strategy = match &core.get_actors()[0] {
-        MyActors::Strategy(s) => s,
+    let strategy_mutex = core.get_actors()[0].lock().unwrap();
+
+    let strategy = match *strategy_mutex {
+        MyActors::Strategy(ref s) => s,
     };
     //let data = serde_json::to_vec(&strategy.collected_events).unwrap();
     //fs::write("tests/collected_events.json", data).unwrap();
@@ -368,14 +371,16 @@ fn check_event_sequence_multiple_exchanges_symbols() {
     gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
     gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
 
-    let actors = vec![MyActors::Strategy(strategy)];
+    let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
 
     let mut core = EventLoop::new(sim_trading, actors, gw_senders);
 
     core.run();
 
-    let strategy = match &core.get_actors()[0] {
-        MyActors::Strategy(s) => s,
+    let strategy_mutex = core.get_actors()[0].lock().unwrap();
+
+    let strategy = match *strategy_mutex {
+        MyActors::Strategy(ref s) => s,
     };
     //let data = serde_json::to_vec(&strategy.collected_events).unwrap();
     //fs::write("tests/collected_events_multiple.json", data).unwrap();
