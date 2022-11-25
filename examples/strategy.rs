@@ -1,9 +1,11 @@
-use crossbeam_channel::unbounded;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use geger::common::log::setup_log;
+use geger::core::actions_context::ActionsContext;
 use geger::core::event_loop::{Actor, EventLoop};
 use geger::core::events::Event;
 use geger::core::gateway_router::{CancelOrderRequest, GatewayRouter, NewOrderRequest};
 use geger::core::market_data::{MarketDataEvent, Quote};
+use geger::core::message_bus::{CrossbeamMessageSender, Message, MessageSender, Topic};
 use geger::core::types::{Exchange, OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp};
 use geger::sim::broker::SimBroker;
 use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
@@ -59,6 +61,23 @@ impl From<QuoteDef> for Quote {
             exchange_timestamp: (exchange_timestamp * 1_000.0) as u64,
             received_timestamp: (received_timestamp * 1_000.0) as u64,
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct MyMessage {
+    topic: Option<Topic>,
+    stop_message: bool,
+    _content: String,
+}
+
+impl Message for MyMessage {
+    fn get_topic(&self) -> Option<Topic> {
+        self.topic.clone()
+    }
+
+    fn is_stop_message(&self) -> bool {
+        self.stop_message
     }
 }
 
@@ -166,7 +185,11 @@ impl SampleStrategy {
         }
     }
 
-    fn on_quote(&mut self, quote: &Quote, gw_router: &mut GatewayRouter) {
+    fn on_quote<M: Message, MS: MessageSender<M>>(
+        &mut self,
+        quote: &Quote,
+        gw_router: &mut ActionsContext<M, MS>,
+    ) {
         if !self.has_open_order {
             let request = NewOrderRequest {
                 request_id: "".to_string(),
@@ -190,8 +213,8 @@ impl SampleStrategy {
     }
 }
 
-impl Actor for SampleStrategy {
-    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+impl<M: Message, MS: MessageSender<M>> Actor<M, MS> for SampleStrategy {
+    fn on_event(&mut self, event: &Event, gw_router: &mut ActionsContext<M, MS>) {
         if event.timestamp() < self.last_ts {
             panic!(
                 "timestamp sequence is broken. event: {:#?} seen_events: {:#?}",
@@ -231,10 +254,10 @@ enum MyActors {
     Strategy(SampleStrategy),
 }
 
-impl Actor for MyActors {
-    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+impl<M: Message, MS: MessageSender<M>> Actor<M, MS> for MyActors {
+    fn on_event(&mut self, event: &Event, actions_context: &mut ActionsContext<M, MS>) {
         match self {
-            MyActors::Strategy(s) => s.on_event(event, gw_router),
+            MyActors::Strategy(s) => s.on_event(event, actions_context),
         }
     }
 }
@@ -257,7 +280,13 @@ fn main() {
     gw_senders.insert(sim_broker_name, gw_sender);
 
     let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
-    let mut core = EventLoop::new(sim_trading, actors, gw_senders);
+    let (message_sender, _): (Sender<MyMessage>, Receiver<MyMessage>) = unbounded();
+    let gateway_router = GatewayRouter::new(gw_senders);
+    let message_sender = CrossbeamMessageSender::new(message_sender);
+
+    let actions_context = ActionsContext::new(gateway_router, message_sender);
+
+    let mut core = EventLoop::new(sim_trading, actors, actions_context);
 
     core.run()
 }

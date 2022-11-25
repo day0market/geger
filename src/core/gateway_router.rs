@@ -52,6 +52,7 @@ pub enum GatewayRouterError {
     SendError(SendError<ExchangeRequest>),
 }
 
+#[derive(Clone, Debug)]
 pub struct GatewayRouter {
     senders: HashMap<Exchange, Sender<ExchangeRequest>>,
 }
@@ -61,14 +62,20 @@ impl GatewayRouter {
         Self { senders }
     }
 
-    pub fn send_request(&mut self, request: ExchangeRequest) -> Result<(), GatewayRouterError> {
+    pub(crate) fn send_request(
+        &mut self,
+        request: ExchangeRequest,
+    ) -> Result<(), GatewayRouterError> {
         match request {
             ExchangeRequest::NewOrder(r) => self.send_order(r),
             ExchangeRequest::CancelOrder(c) => self.cancel_order(c),
         }
     }
 
-    pub fn send_order(&mut self, request: NewOrderRequest) -> Result<(), GatewayRouterError> {
+    pub(crate) fn send_order(
+        &mut self,
+        request: NewOrderRequest,
+    ) -> Result<(), GatewayRouterError> {
         let sender = match self.senders.get(&request.exchange) {
             Some(val) => val,
             None => return Err(GatewayRouterError::UnknownExchange),
@@ -79,7 +86,10 @@ impl GatewayRouter {
         }
     }
 
-    pub fn cancel_order(&mut self, request: CancelOrderRequest) -> Result<(), GatewayRouterError> {
+    pub(crate) fn cancel_order(
+        &mut self,
+        request: CancelOrderRequest,
+    ) -> Result<(), GatewayRouterError> {
         let sender = match self.senders.get(&request.exchange) {
             Some(val) => val,
             None => return Err(GatewayRouterError::UnknownExchange),

@@ -1,4 +1,4 @@
-use crate::core::gateway_router::GatewayRouter;
+use crate::core::actions_context::ActionsContext;
 use crossbeam_channel::{Receiver, Sender};
 use log::error;
 use std::collections::HashMap;
@@ -8,37 +8,44 @@ use std::sync::{Arc, Mutex};
 
 pub type Topic = String;
 
-pub trait Message: Debug {
+pub trait Message: Clone + Debug {
     fn get_topic(&self) -> Option<Topic>;
     fn is_stop_message(&self) -> bool;
 }
 
-pub trait MessageHandler<M: Message>: Debug {
-    fn on_new_message(&mut self, message: &M, gw_router: &GatewayRouter);
+pub trait MessageHandler<M: Message, MS: MessageSender<M>>: Debug {
+    fn on_new_message(&mut self, message: &M, actions_context: &ActionsContext<M, MS>);
     fn get_topics(&self) -> Vec<Topic>;
 }
 
-pub trait MessageProvider<M: Message> {
+pub trait MessageProvider<M: Message>: Debug {
     fn next_message(&mut self) -> Option<M>;
 }
 
-pub trait MessageSender<M: Message> {
+pub trait MessageSender<M: Message>: Debug + Clone {
     fn send_message(&mut self, message: M) -> Result<(), String>;
 }
 
-pub struct MessageBus<M: Message, T: MessageProvider<M>, H: MessageHandler<M>> {
+pub struct MessageBus<
+    M: Message,
+    T: MessageProvider<M>,
+    H: MessageHandler<M, MS>,
+    MS: MessageSender<M>,
+> {
     phantom: PhantomData<M>,
     message_provider: T,
     message_handlers_by_topic: HashMap<Topic, Vec<Arc<Mutex<H>>>>,
     message_handlers_topic_agnostic: Vec<Arc<Mutex<H>>>,
-    gw_router: GatewayRouter,
+    actions_context: ActionsContext<M, MS>,
 }
 
-impl<M: Message, T: MessageProvider<M>, H: MessageHandler<M>> MessageBus<M, T, H> {
+impl<M: Message, T: MessageProvider<M>, H: MessageHandler<M, MS>, MS: MessageSender<M>>
+    MessageBus<M, T, H, MS>
+{
     pub fn new(
         message_provider: T,
         message_handlers: Vec<Arc<Mutex<H>>>,
-        gw_router: GatewayRouter,
+        actions_context: ActionsContext<M, MS>,
     ) -> Self {
         let mut message_handlers_by_topic: HashMap<Topic, Vec<Arc<Mutex<H>>>> = HashMap::new();
         let mut message_handlers_topic_agnostic = vec![];
@@ -64,13 +71,13 @@ impl<M: Message, T: MessageProvider<M>, H: MessageHandler<M>> MessageBus<M, T, H
             message_provider,
             message_handlers_by_topic,
             message_handlers_topic_agnostic,
-            gw_router,
+            actions_context,
         }
     }
 
     fn send_message_to_handler(&self, handler: &Arc<Mutex<H>>, message: &M) {
         match &mut handler.lock() {
-            Ok(handler) => handler.on_new_message(message, &self.gw_router),
+            Ok(handler) => handler.on_new_message(message, &self.actions_context),
             Err(err) => {
                 error!(
                     "failed to lock handler mutex: {:?}. handler: {:?} message:{:?}",
@@ -112,8 +119,15 @@ impl<M: Message, T: MessageProvider<M>, H: MessageHandler<M>> MessageBus<M, T, H
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct CrossbeamMessageSender<M: Message> {
     sender: Sender<M>,
+}
+
+impl<M: Message> CrossbeamMessageSender<M> {
+    pub fn new(sender: Sender<M>) -> Self {
+        Self { sender }
+    }
 }
 
 impl<M: Message> MessageSender<M> for CrossbeamMessageSender<M> {
@@ -125,6 +139,7 @@ impl<M: Message> MessageSender<M> for CrossbeamMessageSender<M> {
     }
 }
 
+#[derive(Debug)]
 pub struct CrossbeamMessageProvider<M: Message> {
     receiver: Receiver<M>,
 }

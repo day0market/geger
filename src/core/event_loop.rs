@@ -1,37 +1,33 @@
 use super::events::Event;
-use super::gateway_router::{ExchangeRequest, GatewayRouter};
-use crossbeam_channel::Sender;
+use crate::core::actions_context::ActionsContext;
+use crate::core::message_bus::{Message, MessageSender};
 use log::error;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-
-use crate::core::types::Exchange;
 
 pub trait EventProvider {
     fn next_event(&mut self) -> Option<Event>;
 }
 
-pub trait Actor {
-    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter);
+pub trait Actor<M: Message, MS: MessageSender<M>> {
+    fn on_event(&mut self, event: &Event, actions_context: &mut ActionsContext<M, MS>);
 }
 
-pub struct EventLoop<T: EventProvider, S: Actor> {
+pub struct EventLoop<T: EventProvider, S: Actor<M, MS>, M: Message, MS: MessageSender<M>> {
     event_provider: T,
     actors: Vec<Arc<Mutex<S>>>,
-    gateway_router: GatewayRouter,
+    actions_context: ActionsContext<M, MS>,
 }
 
-impl<T: EventProvider, S: Actor> EventLoop<T, S> {
+impl<T: EventProvider, S: Actor<M, MS>, M: Message, MS: MessageSender<M>> EventLoop<T, S, M, MS> {
     pub fn new(
         event_provider: T,
         actors: Vec<Arc<Mutex<S>>>,
-        gw_router_senders: HashMap<Exchange, Sender<ExchangeRequest>>,
+        actions_context: ActionsContext<M, MS>,
     ) -> Self {
-        let gateway_router = GatewayRouter::new(gw_router_senders);
         Self {
             event_provider,
             actors,
-            gateway_router,
+            actions_context,
         }
     }
 
@@ -45,7 +41,7 @@ impl<T: EventProvider, S: Actor> EventLoop<T, S> {
             for actor in &mut self.actors {
                 match &mut actor.lock() {
                     Ok(actor) => {
-                        actor.on_event(&event, &mut self.gateway_router);
+                        actor.on_event(&event, &mut self.actions_context);
                     }
                     Err(err) => {
                         error!("failed to process event because of mutex lock error: {:?}. event: {:?}", err, &event)

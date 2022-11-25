@@ -1,12 +1,15 @@
 extern crate core;
 
-use crossbeam_channel::unbounded;
+use crossbeam_channel::{unbounded, Receiver, Sender};
+use geger::core::actions_context::ActionsContext;
 use geger::core::event_loop::{Actor, EventLoop};
 use geger::core::events::{Event, NewOrderAccepted, OrderUpdate};
 use geger::core::gateway_router::{
     CancelOrderRequest, ExchangeRequest, GatewayRouter, NewOrderRequest,
 };
 use geger::core::market_data::{MarketDataEvent, Quote};
+
+use geger::core::message_bus::{CrossbeamMessageSender, Message, MessageSender, Topic};
 use geger::core::types::{ClientOrderId, OrderStatus, OrderType, Side, TimeInForce, Timestamp};
 use geger::sim::broker::SimBroker;
 use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
@@ -30,11 +33,28 @@ enum MyActors {
     Strategy(TestStrategy),
 }
 
-impl Actor for MyActors {
-    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+impl<M: Message, MS: MessageSender<M>> Actor<M, MS> for MyActors {
+    fn on_event(&mut self, event: &Event, actions_context: &mut ActionsContext<M, MS>) {
         match self {
-            MyActors::Strategy(s) => s.on_event(event, gw_router),
+            MyActors::Strategy(s) => s.on_event(event, actions_context),
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct MyMessage {
+    topic: Option<Topic>,
+    stop_message: bool,
+    _content: String,
+}
+
+impl Message for MyMessage {
+    fn get_topic(&self) -> Option<Topic> {
+        self.topic.clone()
+    }
+
+    fn is_stop_message(&self) -> bool {
+        self.stop_message
     }
 }
 
@@ -144,7 +164,11 @@ impl TestStrategy {
         }
     }
 
-    fn on_quote(&mut self, event: &Quote, gw_router: &mut GatewayRouter) {
+    fn on_quote<M: Message, MS: MessageSender<M>>(
+        &mut self,
+        event: &Quote,
+        actions_context: &mut ActionsContext<M, MS>,
+    ) {
         if self.open_order.is_some() {
             return;
         }
@@ -186,12 +210,12 @@ impl TestStrategy {
             .push(TestStrategyCollectedEvent::ExchangeRequest(
                 ExchangeRequest::NewOrder(new_order_request.clone()),
             ));
-        gw_router.send_order(new_order_request).unwrap();
+        actions_context.send_order(new_order_request).unwrap();
     }
 }
 
-impl Actor for TestStrategy {
-    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+impl<M: Message, MS: MessageSender<M>> Actor<M, MS> for TestStrategy {
+    fn on_event(&mut self, event: &Event, actions_context: &mut ActionsContext<M, MS>) {
         if self.last_event_ts > event.timestamp() {
             panic!("wrong timestamp sequence")
         }
@@ -251,7 +275,7 @@ impl Actor for TestStrategy {
                                     ExchangeRequest::CancelOrder(cancel_request.clone()),
                                 ),
                             );
-                            gw_router.cancel_order(cancel_request).unwrap();
+                            actions_context.cancel_order(cancel_request).unwrap();
                         }
                     };
                 }
@@ -260,7 +284,7 @@ impl Actor for TestStrategy {
         }
 
         match event {
-            Event::NewQuote(q) => self.on_quote(q, gw_router),
+            Event::NewQuote(q) => self.on_quote(q, actions_context),
             Event::UDSOrderUpdate(u) => self.on_uds(u),
             Event::ResponseNewOrderAccepted(e) => self.on_order_accepted(e),
             _ => {}
@@ -277,6 +301,8 @@ fn check_event_sequence_single_exchange_symbol() {
     let mut sim_trading = SimulatedEnvironment::new(provider, None);
 
     let (gw_sender_ok, gw_receiver_ok) = unbounded();
+    let (message_sender, _): (Sender<MyMessage>, Receiver<MyMessage>) = unbounded();
+
     let sim_broker_ok = SimBroker::new(
         TRADE_EXCHANGE.to_string(),
         gw_receiver_ok,
@@ -306,13 +332,17 @@ fn check_event_sequence_single_exchange_symbol() {
     gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
     gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
 
+    let gateway_router = GatewayRouter::new(gw_senders);
+
     let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
+    let message_sender = CrossbeamMessageSender::new(message_sender);
+    let actions_context = ActionsContext::new(gateway_router, message_sender);
 
-    let mut core = EventLoop::new(sim_trading, actors, gw_senders);
+    let mut event_loop = EventLoop::new(sim_trading, actors, actions_context);
 
-    core.run();
+    event_loop.run();
 
-    let strategy_mutex = core.get_actors()[0].lock().unwrap();
+    let strategy_mutex = event_loop.get_actors()[0].lock().unwrap();
 
     let strategy = match *strategy_mutex {
         MyActors::Strategy(ref s) => s,
@@ -342,6 +372,7 @@ fn check_event_sequence_multiple_exchanges_symbols() {
     let mut sim_trading = SimulatedEnvironment::new(provider, None);
 
     let (gw_sender_ok, gw_receiver_ok) = unbounded();
+    let (message_sender, _): (Sender<MyMessage>, Receiver<MyMessage>) = unbounded();
     let sim_broker_ok = SimBroker::new(
         TRADE_EXCHANGE.to_string(),
         gw_receiver_ok,
@@ -373,11 +404,15 @@ fn check_event_sequence_multiple_exchanges_symbols() {
 
     let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
 
-    let mut core = EventLoop::new(sim_trading, actors, gw_senders);
+    let gateway_router = GatewayRouter::new(gw_senders);
+    let message_sender = CrossbeamMessageSender::new(message_sender);
+    let actions_context = ActionsContext::new(gateway_router, message_sender);
 
-    core.run();
+    let mut event_loop = EventLoop::new(sim_trading, actors, actions_context);
 
-    let strategy_mutex = core.get_actors()[0].lock().unwrap();
+    event_loop.run();
+
+    let strategy_mutex = event_loop.get_actors()[0].lock().unwrap();
 
     let strategy = match *strategy_mutex {
         MyActors::Strategy(ref s) => s,
