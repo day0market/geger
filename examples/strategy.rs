@@ -1,6 +1,7 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use geger::common::log::setup_log;
 use geger::core::actions_context::ActionsContext;
+use geger::core::builder::Builder;
 use geger::core::event_loop::{Actor, EventLoop};
 use geger::core::events::Event;
 use geger::core::gateway_router::{CancelOrderRequest, GatewayRouter, NewOrderRequest};
@@ -266,27 +267,15 @@ fn main() {
     if let Err(err) = setup_log(Some(LevelFilter::Debug), None) {
         panic!("{:?}", err)
     }
+
     let md_provider = FileMarketDataProvider::new("data/examples/strategy");
-    let strategy = SampleStrategy::new();
-    let (gw_sender, gw_receiver) = unbounded();
+    let mut builder = Builder::new();
+    let mut latencies = HashMap::new();
+    latencies.insert(SIM_BROKER_EXCHANGE.to_string(), (Some(0), Some(0)));
 
-    let sim_broker_name: Exchange = SIM_BROKER_EXCHANGE.to_string();
-    let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver, true, Some(0), Some(0));
-    let mut sim_trading = SimulatedEnvironment::new(md_provider, None);
-    if let Err(err) = sim_trading.add_broker(sim_broker) {
-        panic!("{:?}", err)
-    };
-    let mut gw_senders = HashMap::new();
-    gw_senders.insert(sim_broker_name, gw_sender);
-
-    let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
-    let (message_sender, _): (Sender<MyMessage>, Receiver<MyMessage>) = unbounded();
-    let gateway_router = GatewayRouter::new(gw_senders);
-    let message_sender = CrossbeamMessageSender::new(message_sender);
-
-    let actions_context = ActionsContext::new(gateway_router, message_sender);
-
-    let mut core = EventLoop::new(sim_trading, actors, actions_context);
-
-    core.run()
+    builder.add_actor(Arc::new(Mutex::new(MyActors::Strategy(
+        SampleStrategy::new(),
+    ))));
+    builder.add_exchange(SIM_BROKER_EXCHANGE.to_string());
+    builder.run_with_sim_environment(md_provider, None, latencies);
 }

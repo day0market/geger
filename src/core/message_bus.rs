@@ -1,5 +1,5 @@
 use crate::core::actions_context::ActionsContext;
-use crossbeam_channel::{Receiver, Sender};
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::error;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -122,11 +122,17 @@ impl<M: Message, T: MessageProvider<M>, H: MessageHandler<M, MS>, MS: MessageSen
 #[derive(Clone, Debug)]
 pub struct CrossbeamMessageSender<M: Message> {
     sender: Sender<M>,
+    receiver: Receiver<M>,
 }
 
 impl<M: Message> CrossbeamMessageSender<M> {
-    pub fn new(sender: Sender<M>) -> Self {
-        Self { sender }
+    pub fn receiver(&self) -> Receiver<M> {
+        return self.receiver.clone();
+    }
+
+    pub fn new() -> Self {
+        let (sender, receiver) = unbounded();
+        Self { sender, receiver }
     }
 }
 
@@ -159,5 +165,22 @@ impl<M: Message> MessageProvider<M> for CrossbeamMessageProvider<M> {
                 None
             }
         }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct SimpleMessage {
+    pub topic: Option<Topic>,
+    pub stop_message: bool,
+    pub content: String,
+}
+
+impl Message for SimpleMessage {
+    fn get_topic(&self) -> Option<Topic> {
+        self.topic.clone()
+    }
+
+    fn is_stop_message(&self) -> bool {
+        self.stop_message
     }
 }

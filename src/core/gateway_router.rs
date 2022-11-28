@@ -2,7 +2,7 @@ use super::types::{
     ClientOrderId, Exchange, ExchangeOrderId, ExchangeRequestID, OrderType, Side, Symbol,
     TimeInForce, Timestamp,
 };
-use crossbeam_channel::{SendError, Sender};
+use crossbeam_channel::{unbounded, Receiver, SendError, Sender};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -55,11 +55,23 @@ pub enum GatewayRouterError {
 #[derive(Clone, Debug)]
 pub struct GatewayRouter {
     senders: HashMap<Exchange, Sender<ExchangeRequest>>,
+    receivers: HashMap<Exchange, Receiver<ExchangeRequest>>,
 }
 
 impl GatewayRouter {
-    pub fn new(senders: HashMap<Exchange, Sender<ExchangeRequest>>) -> Self {
-        Self { senders }
+    pub fn new(exchanges: Vec<Exchange>) -> Self {
+        let mut receivers = HashMap::new();
+        let mut senders = HashMap::new();
+        for exchange in exchanges {
+            let (sender, receiver) = unbounded();
+            senders.insert(exchange.clone(), sender);
+            receivers.insert(exchange, receiver);
+        }
+        Self { senders, receivers }
+    }
+
+    pub fn receivers(&self) -> HashMap<Exchange, Receiver<ExchangeRequest>> {
+        self.receivers.clone()
     }
 
     pub(crate) fn send_request(
