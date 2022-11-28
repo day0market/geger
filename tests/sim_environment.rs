@@ -336,7 +336,7 @@ fn check_event_sequence_single_exchange_symbol() {
 
     let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
     let message_sender = CrossbeamMessageSender::new(message_sender);
-    let actions_context = ActionsContext::new(gateway_router, message_sender);
+    let actions_context = ActionsContext::new_with_sender(gateway_router, message_sender);
 
     let mut event_loop = EventLoop::new(sim_trading, actors, actions_context);
 
@@ -406,7 +406,7 @@ fn check_event_sequence_multiple_exchanges_symbols() {
 
     let gateway_router = GatewayRouter::new(gw_senders);
     let message_sender = CrossbeamMessageSender::new(message_sender);
-    let actions_context = ActionsContext::new(gateway_router, message_sender);
+    let actions_context = ActionsContext::new_with_sender(gateway_router, message_sender);
 
     let mut event_loop = EventLoop::new(sim_trading, actors, actions_context);
 

@@ -8,7 +8,7 @@ use geger::core::gateway_router::{CancelOrderRequest, GatewayRouter, NewOrderReq
 use geger::core::market_data::{MarketDataEvent, Quote};
 use geger::core::message_bus::{CrossbeamMessageSender, Message, MessageSender, Topic};
 use geger::core::types::{Exchange, OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp};
-use geger::sim::broker::SimBroker;
+use geger::sim::broker::{SimBroker, SimBrokerConfig};
 use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
 use log::{debug, error, LevelFilter};
 use serde::{Deserialize, Serialize};
@@ -270,12 +270,12 @@ fn main() {
 
     let md_provider = FileMarketDataProvider::new("data/examples/strategy");
     let mut builder = Builder::new();
-    let mut latencies = HashMap::new();
-    latencies.insert(SIM_BROKER_EXCHANGE.to_string(), (Some(0), Some(0)));
+    let mut sim_broker_configs = HashMap::new();
+    sim_broker_configs.insert(SIM_BROKER_EXCHANGE.to_string(), SimBrokerConfig::default());
 
     builder.add_actor(Arc::new(Mutex::new(MyActors::Strategy(
         SampleStrategy::new(),
     ))));
     builder.add_exchange(SIM_BROKER_EXCHANGE.to_string());
-    builder.run_with_sim_environment(md_provider, None, latencies);
+    builder.run_with_sim_environment(md_provider, None, sim_broker_configs, false);
 }
