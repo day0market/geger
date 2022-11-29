@@ -285,5 +285,11 @@ fn main() {
     engine.add_message_handler(strategy.clone());
     engine.add_exchange(SIM_BROKER_EXCHANGE.to_string());
 
-    engine.execute_in_sim_environment(md_provider, None, sim_broker_configs, true);
+    let execution_info = engine
+        .execute_with_sim_environment(md_provider, None, sim_broker_configs, true)
+        .unwrap();
+
+    for th in execution_info.threads {
+        th.unwrap().join().unwrap()
+    }
 }

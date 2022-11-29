@@ -2,7 +2,10 @@ use crate::core::gateway_router::{
     CancelOrderRequest, ExchangeRequest, GatewayRouter, GatewayRouterError, NewOrderRequest,
 };
 use crate::core::message_bus::{CrossbeamMessageSender, Message, MessageSender, SimpleMessage};
+use crate::core::types::Exchange;
+use crossbeam_channel::Receiver;
 use log::warn;
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -26,6 +29,9 @@ pub struct ActionsContext<M: Message, T: MessageSender<M>> {
 }
 
 impl<M: Message, T: MessageSender<M>> ActionsContext<M, T> {
+    pub fn exchange_requests_receivers(&self) -> HashMap<Exchange, Receiver<ExchangeRequest>> {
+        self.gw_router.receivers()
+    }
     pub fn new_with_sender(gw_router: GatewayRouter, message_sender: T) -> Self {
         Self {
             phantom: Default::default(),
