@@ -2,6 +2,7 @@ use crate::core::gateway_router::{
     CancelOrderRequest, ExchangeRequest, GatewayRouter, GatewayRouterError, NewOrderRequest,
 };
 use crate::core::message_bus::{CrossbeamMessageSender, Message, MessageSender, SimpleMessage};
+use log::warn;
 use std::marker::PhantomData;
 
 #[derive(Debug)]
@@ -51,6 +52,7 @@ impl<M: Message, T: MessageSender<M>> ActionsContext<M, T> {
     }
 
     pub fn send_message(&mut self, message: M) -> Result<(), ActionError> {
+        warn!("send new message: {:?}", &message);
         match &mut self.message_sender {
             Some(val) => match val.send_message(message) {
                 Ok(_) => Ok(()),

@@ -1,18 +1,16 @@
 extern crate core;
 
-use crossbeam_channel::{unbounded, Receiver, Sender};
 use geger::core::actions_context::ActionsContext;
-use geger::core::event_loop::{Actor, EventLoop};
+use geger::core::event_loop::Actor;
 use geger::core::events::{Event, NewOrderAccepted, OrderUpdate};
-use geger::core::gateway_router::{
-    CancelOrderRequest, ExchangeRequest, GatewayRouter, NewOrderRequest,
-};
+use geger::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderRequest};
 use geger::core::market_data::{MarketDataEvent, Quote};
 
-use geger::core::message_bus::{CrossbeamMessageSender, Message, MessageSender, Topic};
+use geger::core::engine::Engine;
+use geger::core::message_bus::{LoggerMessageHandler, Message, MessageSender};
 use geger::core::types::{ClientOrderId, OrderStatus, OrderType, Side, TimeInForce, Timestamp};
-use geger::sim::broker::SimBroker;
-use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
+use geger::sim::broker::SimBrokerConfig;
+use geger::sim::environment::SimulatedTradingMarketDataProvider;
 use json_comments::StripComments;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -38,23 +36,6 @@ impl<M: Message, MS: MessageSender<M>> Actor<M, MS> for MyActors {
         match self {
             MyActors::Strategy(s) => s.on_event(event, actions_context),
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct MyMessage {
-    topic: Option<Topic>,
-    stop_message: bool,
-    _content: String,
-}
-
-impl Message for MyMessage {
-    fn get_topic(&self) -> Option<Topic> {
-        self.topic.clone()
-    }
-
-    fn is_stop_message(&self) -> bool {
-        self.stop_message
     }
 }
 
@@ -296,55 +277,30 @@ impl<M: Message, MS: MessageSender<M>> Actor<M, MS> for TestStrategy {
 fn check_event_sequence_single_exchange_symbol() {
     let expected_collected_events = get_expected_events_from_fixture();
 
-    let provider = TestEventSequenceMDProvider::new(SINGLE_SYMBOL_MD);
-    let strategy = TestStrategy::new();
-    let mut sim_trading = SimulatedEnvironment::new(provider, None);
+    let md_provider = TestEventSequenceMDProvider::new(SINGLE_SYMBOL_MD);
+    let strategy = MyActors::Strategy(TestStrategy::new());
+    let arc_strategy = Arc::new(Mutex::new(strategy));
+    let message_handler = Arc::new(Mutex::new(LoggerMessageHandler::default()));
 
-    let (gw_sender_ok, gw_receiver_ok) = unbounded();
-    let (message_sender, _): (Sender<MyMessage>, Receiver<MyMessage>) = unbounded();
-
-    let sim_broker_ok = SimBroker::new(
+    let mut sim_broker_configs = HashMap::new();
+    sim_broker_configs.insert(
         TRADE_EXCHANGE.to_string(),
-        gw_receiver_ok,
-        true,
-        Some(100),
-        Some(5),
+        SimBrokerConfig::new(true, Some(100), Some(5)),
     );
-
-    let (gw_sender_not_ok, gw_receiver_not_ok) = unbounded();
-    let sim_broker_not_ok = SimBroker::new(
+    sim_broker_configs.insert(
         NON_TRADE_EXCHANGE.to_string(),
-        gw_receiver_not_ok,
-        true,
-        Some(50),
-        Some(10),
+        SimBrokerConfig::new(true, Some(50), Some(10)),
     );
 
-    if let Err(err) = sim_trading.add_broker(sim_broker_ok) {
-        panic!("{:?}", err)
-    };
+    let mut engine = Engine::new();
+    engine.add_exchange(TRADE_EXCHANGE.to_string());
+    engine.add_exchange(NON_TRADE_EXCHANGE.to_string());
+    engine.add_actor(arc_strategy.clone());
+    engine.add_message_handler(message_handler);
+    engine.execute_in_sim_environment(md_provider, None, sim_broker_configs, true);
 
-    if let Err(err) = sim_trading.add_broker(sim_broker_not_ok) {
-        panic!("{:?}", err)
-    };
-
-    let mut gw_senders = HashMap::new();
-    gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
-    gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
-
-    let gateway_router = GatewayRouter::new(gw_senders);
-
-    let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
-    let message_sender = CrossbeamMessageSender::new(message_sender);
-    let actions_context = ActionsContext::new_with_sender(gateway_router, message_sender);
-
-    let mut event_loop = EventLoop::new(sim_trading, actors, actions_context);
-
-    event_loop.run();
-
-    let strategy_mutex = event_loop.get_actors()[0].lock().unwrap();
-
-    let strategy = match *strategy_mutex {
+    let lock = arc_strategy.lock().unwrap();
+    let strategy = match *lock {
         MyActors::Strategy(ref s) => s,
     };
     //let data = serde_json::to_vec(&strategy.collected_events).unwrap();
@@ -367,54 +323,30 @@ fn check_event_sequence_multiple_exchanges_symbols() {
     let expected_md_events =
         TestEventSequenceMDProvider::get_md_events_from_fixture(MULTIPLE_EXCHANGE_SYMBOL_MD);
 
-    let provider = TestEventSequenceMDProvider::new(MULTIPLE_EXCHANGE_SYMBOL_MD);
-    let strategy = TestStrategy::new();
-    let mut sim_trading = SimulatedEnvironment::new(provider, None);
+    let md_provider = TestEventSequenceMDProvider::new(MULTIPLE_EXCHANGE_SYMBOL_MD);
+    let strategy = MyActors::Strategy(TestStrategy::new());
+    let arc_strategy = Arc::new(Mutex::new(strategy));
+    let message_handler = Arc::new(Mutex::new(LoggerMessageHandler::default()));
 
-    let (gw_sender_ok, gw_receiver_ok) = unbounded();
-    let (message_sender, _): (Sender<MyMessage>, Receiver<MyMessage>) = unbounded();
-    let sim_broker_ok = SimBroker::new(
+    let mut sim_broker_configs = HashMap::new();
+    sim_broker_configs.insert(
         TRADE_EXCHANGE.to_string(),
-        gw_receiver_ok,
-        true,
-        Some(100),
-        Some(5),
+        SimBrokerConfig::new(true, Some(100), Some(5)),
     );
-
-    let (gw_sender_not_ok, gw_receiver_not_ok) = unbounded();
-    let sim_broker_not_ok = SimBroker::new(
+    sim_broker_configs.insert(
         NON_TRADE_EXCHANGE.to_string(),
-        gw_receiver_not_ok,
-        true,
-        Some(50),
-        Some(10),
+        SimBrokerConfig::new(true, Some(50), Some(10)),
     );
 
-    if let Err(err) = sim_trading.add_broker(sim_broker_ok) {
-        panic!("{:?}", err)
-    };
+    let mut engine = Engine::new();
+    engine.add_exchange(TRADE_EXCHANGE.to_string());
+    engine.add_exchange(NON_TRADE_EXCHANGE.to_string());
+    engine.add_actor(arc_strategy.clone());
+    engine.add_message_handler(message_handler);
+    engine.execute_in_sim_environment(md_provider, None, sim_broker_configs, true);
 
-    if let Err(err) = sim_trading.add_broker(sim_broker_not_ok) {
-        panic!("{:?}", err)
-    };
-
-    let mut gw_senders = HashMap::new();
-    gw_senders.insert(TRADE_EXCHANGE.to_string(), gw_sender_ok);
-    gw_senders.insert(NON_TRADE_EXCHANGE.to_string(), gw_sender_not_ok);
-
-    let actors = vec![Arc::new(Mutex::new(MyActors::Strategy(strategy)))];
-
-    let gateway_router = GatewayRouter::new(gw_senders);
-    let message_sender = CrossbeamMessageSender::new(message_sender);
-    let actions_context = ActionsContext::new_with_sender(gateway_router, message_sender);
-
-    let mut event_loop = EventLoop::new(sim_trading, actors, actions_context);
-
-    event_loop.run();
-
-    let strategy_mutex = event_loop.get_actors()[0].lock().unwrap();
-
-    let strategy = match *strategy_mutex {
+    let lock = arc_strategy.lock().unwrap();
+    let strategy = match *lock {
         MyActors::Strategy(ref s) => s,
     };
     //let data = serde_json::to_vec(&strategy.collected_events).unwrap();
@@ -423,10 +355,8 @@ fn check_event_sequence_multiple_exchanges_symbols() {
     for i in 0..expected_collected_events.len() {
         let expected = &expected_collected_events[i];
         let found = &strategy.collected_events.contains(expected);
-        if !found {
-            info!("not found: {:?}", &expected)
-        }
-        assert!(found);
+
+        assert!(found, "expected: {:?}", &expected);
     }
 
     let mut collected_md_events = vec![];

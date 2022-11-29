@@ -8,7 +8,7 @@ pub trait EventProvider {
     fn next_event(&mut self) -> Option<Event>;
 }
 
-pub trait Actor<M: Message, MS: MessageSender<M>> {
+pub trait Actor<M: Message, MS: MessageSender<M>>: Send {
     fn on_event(&mut self, event: &Event, actions_context: &mut ActionsContext<M, MS>);
 }
 
@@ -49,9 +49,27 @@ impl<T: EventProvider, S: Actor<M, MS>, M: Message, MS: MessageSender<M>> EventL
                 }
             }
         }
+        let term_message = M::new_event_loop_stopped_message();
+        if let Err(err) = self.actions_context.send_message(term_message) {
+            error!("failed to send action: {:?}", err)
+        }
     }
 
     pub fn get_actors(&self) -> &Vec<Arc<Mutex<S>>> {
         &self.actors
     }
+}
+
+pub fn start_event_loop<
+    T: EventProvider + Send + 'static,
+    S: Actor<M, MS> + Send + 'static,
+    M: Message + Send + 'static,
+    MS: MessageSender<M> + Send + 'static,
+>(
+    event_provider: T,
+    actors: Vec<Arc<Mutex<S>>>,
+    actions_context: ActionsContext<M, MS>,
+) {
+    let mut event_loop = EventLoop::new(event_provider, actors, actions_context.clone());
+    event_loop.run()
 }
