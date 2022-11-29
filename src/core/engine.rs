@@ -125,7 +125,6 @@ impl<
         if run_messaging {
             let message_provider = message_provider.unwrap();
             let message_handlers = self.message_handlers.clone();
-            let actions_context = actions_context.clone();
             threads.push(
                 thread::Builder::new()
                     .name("message_bus_thread".to_string())

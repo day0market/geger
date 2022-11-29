@@ -70,6 +70,6 @@ pub fn start_event_loop<
     actors: Vec<Arc<Mutex<S>>>,
     actions_context: ActionsContext<M, MS>,
 ) {
-    let mut event_loop = EventLoop::new(event_provider, actors, actions_context.clone());
+    let mut event_loop = EventLoop::new(event_provider, actors, actions_context);
     event_loop.run()
 }

@@ -64,9 +64,9 @@ impl<M: Message, T: MessageSender<M>> ActionsContext<M, T> {
                 Ok(_) => Ok(()),
                 Err(err) => Err(ActionError::SendMessageError(err)),
             },
-            None => Err(ActionError::ActionNotSupported(format!(
-                "send_message is not supported"
-            ))),
+            None => Err(ActionError::ActionNotSupported(
+                "send_message is not supported".into(),
+            )),
         }
     }
 }

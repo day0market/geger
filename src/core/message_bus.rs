@@ -137,7 +137,7 @@ pub struct CrossbeamMessageSender<M: Message> {
 
 impl<M: Message> CrossbeamMessageSender<M> {
     pub fn receiver(&self) -> Receiver<M> {
-        return self.receiver.clone();
+        self.receiver.clone()
     }
 
     pub fn new() -> Self {
