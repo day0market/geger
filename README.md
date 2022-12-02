@@ -14,6 +14,14 @@
 
 ## **Architecture overview**
 
+**High Level Diagram**
+
+![Architecture Diagram](images/arhitecture.png)
+
+**High Level Diagram For Simulation Env**
+
+![Architecture Diagram](images/sim_environment.png)
+
 ### Events
 
 First of all, it's event driven framework. It has 2 types of events:
@@ -254,6 +262,12 @@ let mut engine = Engine::new();
 ```
 
 see full example strategy [here](examples/strategy.rs)
+
+
+
+Here is example of distributed trading system made with  **Geger** framework:
+
+![Architecture Diagram](images/use_cases.png)
 
 
 ## Disclaimer
