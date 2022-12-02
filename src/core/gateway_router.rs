@@ -2,7 +2,7 @@ use super::types::{
     ClientOrderId, Exchange, ExchangeOrderId, ExchangeRequestID, OrderType, Side, Symbol,
     TimeInForce, Timestamp,
 };
-use crossbeam_channel::{SendError, Sender};
+use crossbeam_channel::{unbounded, Receiver, SendError, Sender};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -52,23 +52,42 @@ pub enum GatewayRouterError {
     SendError(SendError<ExchangeRequest>),
 }
 
+#[derive(Clone, Debug)]
 pub struct GatewayRouter {
     senders: HashMap<Exchange, Sender<ExchangeRequest>>,
+    receivers: HashMap<Exchange, Receiver<ExchangeRequest>>,
 }
 
 impl GatewayRouter {
-    pub fn new(senders: HashMap<Exchange, Sender<ExchangeRequest>>) -> Self {
-        Self { senders }
+    pub fn new(exchanges: Vec<Exchange>) -> Self {
+        let mut receivers = HashMap::new();
+        let mut senders = HashMap::new();
+        for exchange in exchanges {
+            let (sender, receiver) = unbounded();
+            senders.insert(exchange.clone(), sender);
+            receivers.insert(exchange, receiver);
+        }
+        Self { senders, receivers }
     }
 
-    pub fn send_request(&mut self, request: ExchangeRequest) -> Result<(), GatewayRouterError> {
+    pub fn receivers(&self) -> HashMap<Exchange, Receiver<ExchangeRequest>> {
+        self.receivers.clone()
+    }
+
+    pub(crate) fn send_request(
+        &mut self,
+        request: ExchangeRequest,
+    ) -> Result<(), GatewayRouterError> {
         match request {
             ExchangeRequest::NewOrder(r) => self.send_order(r),
             ExchangeRequest::CancelOrder(c) => self.cancel_order(c),
         }
     }
 
-    pub fn send_order(&mut self, request: NewOrderRequest) -> Result<(), GatewayRouterError> {
+    pub(crate) fn send_order(
+        &mut self,
+        request: NewOrderRequest,
+    ) -> Result<(), GatewayRouterError> {
         let sender = match self.senders.get(&request.exchange) {
             Some(val) => val,
             None => return Err(GatewayRouterError::UnknownExchange),
@@ -79,7 +98,10 @@ impl GatewayRouter {
         }
     }
 
-    pub fn cancel_order(&mut self, request: CancelOrderRequest) -> Result<(), GatewayRouterError> {
+    pub(crate) fn cancel_order(
+        &mut self,
+        request: CancelOrderRequest,
+    ) -> Result<(), GatewayRouterError> {
         let sender = match self.senders.get(&request.exchange) {
             Some(val) => val,
             None => return Err(GatewayRouterError::UnknownExchange),

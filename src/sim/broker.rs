@@ -7,7 +7,7 @@ use crate::core::gateway_router::{CancelOrderRequest, ExchangeRequest, NewOrderR
 use crate::core::market_data::MarketDataEvent;
 use crate::core::order::Order;
 use crate::core::types::{
-    EventId, Exchange, ExecutionType, OrderStatus, OrderType, Side, Timestamp,
+    EventId, Exchange, ExecutionType, Latency, OrderStatus, OrderType, Side, Timestamp,
 };
 use crossbeam_channel::Receiver;
 use log::debug;
@@ -80,6 +80,27 @@ struct SimBrokerExchangeRequest {
     exchange_request: ExchangeRequest,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct SimBrokerConfig {
+    strict_execution: bool,
+    wire_latency: Option<Latency>,
+    internal_latency: Option<Latency>,
+}
+
+impl SimBrokerConfig {
+    pub fn new(
+        strict_execution: bool,
+        wire_latency: Option<Latency>,
+        internal_latency: Option<Latency>,
+    ) -> Self {
+        Self {
+            strict_execution,
+            wire_latency,
+            internal_latency,
+        }
+    }
+}
+
 pub struct SimBroker {
     exchange: Exchange,
     last_exchange_order_id: InternalID,
@@ -94,8 +115,8 @@ pub struct SimBroker {
     incoming_request_receiver: Receiver<ExchangeRequest>,
     generated_events: HashMap<InternalID, Event>,
 
-    wire_latency: Timestamp,
-    internal_latency: Timestamp,
+    wire_latency: Latency,
+    internal_latency: Latency,
     strict_execution: bool,
 }
 
@@ -103,9 +124,7 @@ impl SimBroker {
     pub fn new(
         exchange: Exchange,
         incoming_request_receiver: Receiver<ExchangeRequest>,
-        strict_execution: bool,
-        wire_latency: Option<u64>,
-        internal_latency: Option<u64>,
+        config: SimBrokerConfig,
     ) -> Self {
         Self {
             exchange,
@@ -120,9 +139,9 @@ impl SimBroker {
             pending_requests: HashMap::new(),
             generated_events: HashMap::new(),
             incoming_request_receiver,
-            wire_latency: wire_latency.unwrap_or(0),
-            internal_latency: internal_latency.unwrap_or(0),
-            strict_execution,
+            wire_latency: config.wire_latency.unwrap_or(0),
+            internal_latency: config.internal_latency.unwrap_or(0),
+            strict_execution: config.strict_execution,
         }
     }
 
@@ -468,10 +487,6 @@ impl SimulatedBroker for SimBroker {
         self.exchange.clone()
     }
 
-    fn wire_latency(&self) -> Timestamp {
-        self.wire_latency
-    }
-
     fn on_new_timestamp(&mut self, ts: Timestamp) -> Vec<Event> {
         self.last_ts = ts;
         self.process_requests_on_new_ts(ts);
@@ -492,5 +507,9 @@ impl SimulatedBroker for SimBroker {
 
     fn estimate_market_data_timestamp(&self, md: &MarketDataEvent) -> Timestamp {
         md.exchange_timestamp() + self.wire_latency
+    }
+
+    fn wire_latency(&self) -> Timestamp {
+        self.wire_latency
     }
 }

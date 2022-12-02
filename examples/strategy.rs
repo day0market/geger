@@ -1,16 +1,21 @@
-use crossbeam_channel::unbounded;
 use geger::common::log::setup_log;
-use geger::core::event_loop::{Actor, EventLoop};
+use geger::core::actions_context::ActionsContext;
+use geger::core::engine::Engine;
+use geger::core::event_loop::Actor;
 use geger::core::events::Event;
-use geger::core::gateway_router::{CancelOrderRequest, GatewayRouter, NewOrderRequest};
+use geger::core::gateway_router::{CancelOrderRequest, NewOrderRequest};
 use geger::core::market_data::{MarketDataEvent, Quote};
+use geger::core::message_bus::{
+    CrossbeamMessageSender, Message, MessageHandler, MessageSender, SimpleMessage, Topic,
+};
 use geger::core::types::{Exchange, OrderStatus, OrderType, Side, Symbol, TimeInForce, Timestamp};
-use geger::sim::broker::SimBroker;
-use geger::sim::environment::{SimulatedEnvironment, SimulatedTradingMarketDataProvider};
-use log::{debug, error, LevelFilter};
+use geger::sim::broker::SimBrokerConfig;
+use geger::sim::environment::SimulatedTradingMarketDataProvider;
+use log::{debug, error, warn, LevelFilter};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::sync::{Arc, Mutex};
 
 const SIM_BROKER_EXCHANGE: &str = "test_exchange";
 
@@ -150,6 +155,7 @@ impl SimulatedTradingMarketDataProvider for FileMarketDataProvider {
     }
 }
 
+#[derive(Debug)]
 struct SampleStrategy {
     has_open_order: bool,
     last_ts: Timestamp,
@@ -165,7 +171,11 @@ impl SampleStrategy {
         }
     }
 
-    fn on_quote(&mut self, quote: &Quote, gw_router: &mut GatewayRouter) {
+    fn on_quote<M: Message, MS: MessageSender<M>>(
+        &mut self,
+        quote: &Quote,
+        actions_context: &mut ActionsContext<M, MS>,
+    ) {
         if !self.has_open_order {
             let request = NewOrderRequest {
                 request_id: "".to_string(),
@@ -181,7 +191,7 @@ impl SampleStrategy {
                 creation_ts: quote.received_timestamp,
             };
             debug!("new order request: {:?}", &request);
-            if let Err(err) = gw_router.send_order(request) {
+            if let Err(err) = actions_context.send_order(request) {
                 panic!("{:?}", err)
             };
             self.has_open_order = true
@@ -189,8 +199,8 @@ impl SampleStrategy {
     }
 }
 
-impl Actor for SampleStrategy {
-    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+impl<MS: MessageSender<SimpleMessage>> Actor<SimpleMessage, MS> for SampleStrategy {
+    fn on_event(&mut self, event: &Event, actions_context: &mut ActionsContext<SimpleMessage, MS>) {
         if event.timestamp() < self.last_ts {
             panic!(
                 "timestamp sequence is broken. event: {:#?} seen_events: {:#?}",
@@ -202,7 +212,7 @@ impl Actor for SampleStrategy {
         self.last_ts = event.timestamp();
 
         match event {
-            Event::NewQuote(quote) => self.on_quote(quote, gw_router),
+            Event::NewQuote(quote) => self.on_quote(quote, actions_context),
             Event::UDSOrderUpdate(msg) => match msg.order_status {
                 OrderStatus::NEW => {
                     let request = CancelOrderRequest {
@@ -214,7 +224,13 @@ impl Actor for SampleStrategy {
                         creation_ts: msg.exchange_timestamp,
                     };
                     debug!("new cancel request: {:?}", &request);
-                    gw_router.cancel_order(request).unwrap();
+                    actions_context
+                        .send_message(SimpleMessage::new(
+                            Some("UDS".to_string()),
+                            format!("{:?}", msg),
+                        ))
+                        .unwrap();
+                    actions_context.cancel_order(request).unwrap();
                 }
                 OrderStatus::CANCELED => {
                     self.has_open_order = false;
@@ -226,15 +242,30 @@ impl Actor for SampleStrategy {
     }
 }
 
+#[derive(Debug)]
 enum MyActors {
     Strategy(SampleStrategy),
 }
 
-impl Actor for MyActors {
-    fn on_event(&mut self, event: &Event, gw_router: &mut GatewayRouter) {
+impl<MS: MessageSender<SimpleMessage>> Actor<SimpleMessage, MS> for MyActors {
+    fn on_event(&mut self, event: &Event, actions_context: &mut ActionsContext<SimpleMessage, MS>) {
         match self {
-            MyActors::Strategy(s) => s.on_event(event, gw_router),
+            MyActors::Strategy(s) => s.on_event(event, actions_context),
         }
+    }
+}
+
+impl MessageHandler<SimpleMessage, CrossbeamMessageSender<SimpleMessage>> for MyActors {
+    fn on_new_message(
+        &mut self,
+        message: &SimpleMessage,
+        _actions_context: &ActionsContext<SimpleMessage, CrossbeamMessageSender<SimpleMessage>>,
+    ) {
+        warn!("received new message: {:?}", message)
+    }
+
+    fn get_topics(&self) -> Vec<Topic> {
+        return vec![];
     }
 }
 
@@ -242,20 +273,23 @@ fn main() {
     if let Err(err) = setup_log(Some(LevelFilter::Debug), None) {
         panic!("{:?}", err)
     }
+
     let md_provider = FileMarketDataProvider::new("data/examples/strategy");
-    let strategy = SampleStrategy::new();
-    let (gw_sender, gw_receiver) = unbounded();
+    let mut engine = Engine::new();
 
-    let sim_broker_name: Exchange = SIM_BROKER_EXCHANGE.to_string();
-    let sim_broker = SimBroker::new(sim_broker_name.clone(), gw_receiver, true, Some(0), Some(0));
-    let mut sim_trading = SimulatedEnvironment::new(md_provider, None);
-    if let Err(err) = sim_trading.add_broker(sim_broker) {
-        panic!("{:?}", err)
-    };
-    let mut gw_senders = HashMap::new();
-    gw_senders.insert(sim_broker_name, gw_sender);
-    let actors = vec![MyActors::Strategy(strategy)];
-    let mut core = EventLoop::new(sim_trading, actors, gw_senders);
+    let mut sim_broker_configs = HashMap::new();
+    sim_broker_configs.insert(SIM_BROKER_EXCHANGE.to_string(), SimBrokerConfig::default());
 
-    core.run()
+    let strategy = Arc::new(Mutex::new(MyActors::Strategy(SampleStrategy::new())));
+    engine.add_actor(strategy.clone());
+    engine.add_message_handler(strategy.clone());
+    engine.add_exchange(SIM_BROKER_EXCHANGE.to_string());
+
+    let execution_info = engine
+        .execute_with_sim_environment(md_provider, None, sim_broker_configs, true)
+        .unwrap();
+
+    for th in execution_info.threads {
+        th.unwrap().join().unwrap()
+    }
 }

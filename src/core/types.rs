@@ -5,6 +5,7 @@ pub type ClientOrderId = String;
 pub type ExchangeOrderId = String;
 pub type Symbol = String;
 pub type Timestamp = u64;
+pub type Latency = u64;
 pub type EventId = String;
 pub type ExchangeRequestID = String;
 
