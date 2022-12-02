@@ -16,7 +16,7 @@
 
 **High Level Diagram**
 
-![Architecture Diagram](images/arhitecture.png)
+![Architecture Diagram](images/architecture.png)
 
 **High Level Diagram For Simulation Env**
 
