@@ -267,7 +267,7 @@ see full example strategy [here](examples/strategy.rs)
 
 Here is example of distributed trading system made with  **Geger** framework:
 
-![Architecture Diagram](images/use_cases.png)
+![Use Case Diagram](images/use_cases.png)
 
 
 ## Disclaimer
