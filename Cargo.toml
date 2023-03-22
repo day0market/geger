@@ -11,7 +11,7 @@ crossbeam-channel = "0.5"
 log = "^0.4.14"
 log4rs = "^1.0.0"
 rmp = "~0.8"
-rmp-serde = "~0.15"
+rmp-serde = "~1.1"
 serde = { version = "^1.0.125", features = ["derive"] }
 serde-value = "0.6"
 serde-value-utils  = "0.1"
